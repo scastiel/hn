@@ -9,8 +9,22 @@ pub fn format_story(i: usize, story: &Story) -> String {
         "{:2}. ▲ {} {}\n      {}",
         i + 1,
         format_story_title(&story.title),
-        format_story_url(&story.url),
+        format_story_short_url(&story.url),
         format_second_line(&story),
+    )
+}
+
+pub fn format_story_details(story: &Story) -> String {
+    format!(
+        "▲ {}\n  {}\n  ↳ {}{}",
+        format_story_title(&story.title),
+        format_second_line(&story),
+        format_story_url(&story.url),
+        story
+            .text
+            .as_ref()
+            .map(|text| format!("\n{}", text))
+            .unwrap_or("".to_string()),
     )
 }
 
@@ -18,13 +32,17 @@ fn format_story_title(story_title: &str) -> String {
     style(story_title).bold().to_string()
 }
 
-fn format_story_url(story_url: &Url) -> String {
+fn format_story_short_url(story_url: &Url) -> String {
     style(format!(
         "({})",
         remove_subdomains(story_url.domain().unwrap_or("")).to_string()
     ))
     .dim()
     .to_string()
+}
+
+fn format_story_url(story_url: &Url) -> String {
+    style(story_url).to_string()
 }
 
 fn format_second_line(story: &Story) -> String {
