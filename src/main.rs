@@ -24,9 +24,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .about(crate_description!())
         .version(crate_version!())
         .author(crate_authors!("\n"))
-        .subcommand(SubCommand::with_name("top").about("Print top stories"))
+        .subcommand(
+            SubCommand::with_name("top")
+                .alias("t")
+                .about("Print top stories (default command)"),
+        )
         .subcommand(
             SubCommand::with_name("details")
+                .alias("d")
                 .about("Print a story details")
                 .arg(Arg::with_name("INDEX").required(true).help("Story index")),
         )
@@ -34,7 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mut state = read_state(STATE_PATH);
     match matches.subcommand() {
-        ("top", _) => {
+        ("" | "top", _) => {
             let stories = print_top_stories().await?;
             state.last_stories = Some(stories);
             save_state(&state, STATE_PATH)?;
@@ -50,7 +55,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 eprintln!("Invalid story index.")
             }
         }
-        _ => println!("Please specify subcommand"),
+        _ => (),
     };
 
     Ok(())
