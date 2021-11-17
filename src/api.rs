@@ -4,6 +4,8 @@ use serde::Serialize;
 use serde::{de::DeserializeOwned, Deserialize};
 use url::Url;
 
+const DEFAULT_NUMBER_OF_ITEMS_PER_PAGE: usize = 10;
+
 #[derive(Clone)]
 pub struct PaginationOptions {
     pub from: usize,
@@ -12,7 +14,10 @@ pub struct PaginationOptions {
 
 impl PaginationOptions {
     pub fn default() -> Self {
-        Self { from: 0, to: 30 }
+        Self {
+            from: 0,
+            to: DEFAULT_NUMBER_OF_ITEMS_PER_PAGE,
+        }
     }
 
     pub fn from(&self, from: usize) -> Self {
@@ -21,6 +26,13 @@ impl PaginationOptions {
 
     pub fn to(&self, to: usize) -> Self {
         Self { to, ..*self }
+    }
+
+    pub fn page(page: usize) -> Self {
+        Self {
+            from: (page - 1) * DEFAULT_NUMBER_OF_ITEMS_PER_PAGE,
+            to: page * DEFAULT_NUMBER_OF_ITEMS_PER_PAGE,
+        }
     }
 }
 
@@ -75,7 +87,7 @@ impl ApiClient {
     pub async fn stories_ids(
         &self,
         list: &str,
-        pagination: PaginationOptions,
+        pagination: &PaginationOptions,
     ) -> Result<Vec<u32>, reqwest::Error> {
         let url = format!("https://hacker-news.firebaseio.com/v0/{}.json", list);
         let ids = self.json::<Vec<u32>>(url.as_str()).await?;

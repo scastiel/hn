@@ -20,6 +20,11 @@ const STATE_PATH: &str = ".hn.json";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    let page_arg = Arg::with_name("page")
+        .long("page")
+        .short("p")
+        .takes_value(true)
+        .help("Page number");
     let matches = clap::App::new(crate_name!())
         .about(crate_description!())
         .version(crate_version!())
@@ -27,32 +32,38 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .subcommand(
             SubCommand::with_name("top")
                 .alias("t")
-                .about("Print top stories (default command)"),
+                .about("Print top stories (default command)")
+                .arg(&page_arg),
         )
         .subcommand(
             SubCommand::with_name("new")
                 .alias("n")
-                .about("Print new stories"),
+                .about("Print new stories")
+                .arg(&page_arg),
         )
         .subcommand(
             SubCommand::with_name("best")
                 .alias("b")
-                .about("Print best stories"),
+                .about("Print best stories")
+                .arg(&page_arg),
         )
         .subcommand(
             SubCommand::with_name("ask")
                 .alias("a")
-                .about("Print ask stories"),
+                .about("Print ask stories")
+                .arg(&page_arg),
         )
         .subcommand(
             SubCommand::with_name("show")
                 .alias("s")
-                .about("Print show stories"),
+                .about("Print show stories")
+                .arg(&page_arg),
         )
         .subcommand(
             SubCommand::with_name("job")
                 .alias("j")
-                .about("Print best stories"),
+                .about("Print best stories")
+                .arg(&page_arg),
         )
         .subcommand(
             SubCommand::with_name("details")
@@ -70,28 +81,40 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mut state = read_state(STATE_PATH);
     match matches.subcommand() {
-        ("" | "top", _) => {
-            state.last_stories = Some(print_stories("topstories").await?);
+        ("" | "top", matches) => {
+            let pagination = get_pagination_from_matches(matches);
+            state.last_stories =
+                Some(print_stories("topstories", pagination, state.last_stories).await?);
             save_state(&state, STATE_PATH)?;
         }
-        ("new", _) => {
-            state.last_stories = Some(print_stories("newstories").await?);
+        ("new", matches) => {
+            let pagination = get_pagination_from_matches(matches);
+            state.last_stories =
+                Some(print_stories("newstories", pagination, state.last_stories).await?);
             save_state(&state, STATE_PATH)?;
         }
-        ("best", _) => {
-            state.last_stories = Some(print_stories("beststories").await?);
+        ("best", matches) => {
+            let pagination = get_pagination_from_matches(matches);
+            state.last_stories =
+                Some(print_stories("beststories", pagination, state.last_stories).await?);
             save_state(&state, STATE_PATH)?;
         }
-        ("ask", _) => {
-            state.last_stories = Some(print_stories("askstories").await?);
+        ("ask", matches) => {
+            let pagination = get_pagination_from_matches(matches);
+            state.last_stories =
+                Some(print_stories("askstories", pagination, state.last_stories).await?);
             save_state(&state, STATE_PATH)?;
         }
-        ("show", _) => {
-            state.last_stories = Some(print_stories("showstories").await?);
+        ("show", matches) => {
+            let pagination = get_pagination_from_matches(matches);
+            state.last_stories =
+                Some(print_stories("showstories", pagination, state.last_stories).await?);
             save_state(&state, STATE_PATH)?;
         }
-        ("job", _) => {
-            state.last_stories = Some(print_stories("jobstories").await?);
+        ("job", matches) => {
+            let pagination = get_pagination_from_matches(matches);
+            state.last_stories =
+                Some(print_stories("jobstories", pagination, state.last_stories).await?);
             save_state(&state, STATE_PATH)?;
         }
         ("details", matches) => {
@@ -116,6 +139,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn get_pagination_from_matches(matches: Option<&clap::ArgMatches>) -> PaginationOptions {
+    matches
+        .and_then(|matches| matches.value_of("page"))
+        .and_then(|page_str| result_to_option(page_str.parse::<usize>()))
+        .map(|page| PaginationOptions::page(page))
+        .unwrap_or(PaginationOptions::default())
+}
+
 fn get_story_from_matches<'a>(
     matches: Option<&clap::ArgMatches>,
     state: &'a State,
@@ -130,16 +161,20 @@ fn result_to_option<T, E>(result: Result<T, E>) -> Option<T> {
     result.map(|i| Some(i)).unwrap_or(None)
 }
 
-async fn print_stories(list: &str) -> Result<HashMap<usize, Story>, Box<dyn Error>> {
+async fn print_stories(
+    list: &str,
+    pagination: PaginationOptions,
+    last_stories: Option<HashMap<usize, Story>>,
+) -> Result<HashMap<usize, Story>, Box<dyn Error>> {
     let api = ApiClient::new();
 
-    let stories_ids = api.stories_ids(list, PaginationOptions::default()).await?;
+    let stories_ids = api.stories_ids(list, &pagination).await?;
 
-    let mut stories: HashMap<usize, Story> = HashMap::new();
+    let mut stories = last_stories.unwrap_or(HashMap::new());
     for (i, &story_id) in stories_ids.iter().enumerate() {
         let story = api.story_details(story_id).await?;
-        println!("{}", format_story(i, &story));
-        stories.insert(i + 1, story);
+        println!("{}", format_story(i + pagination.from, &story));
+        stories.insert(i + pagination.from + 1, story);
     }
     Ok(stories)
 }
