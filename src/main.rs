@@ -60,6 +60,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .about("Print a story details")
                 .arg(Arg::with_name("INDEX").required(true).help("Story index")),
         )
+        .subcommand(
+            SubCommand::with_name("open")
+                .alias("o")
+                .about("Open a story’s link in the default browser")
+                .arg(Arg::with_name("INDEX").required(true).help("Story index")),
+        )
         .get_matches();
 
     let mut state = read_state(STATE_PATH);
@@ -89,12 +95,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
             save_state(&state, STATE_PATH)?;
         }
         ("details", matches) => {
-            let last_story = matches
-                .and_then(|matches| matches.value_of("INDEX"))
-                .and_then(|index_str| result_to_option(index_str.parse::<usize>()))
-                .and_then(|index| state.get_last_story(index));
+            let last_story = get_story_from_matches(matches, &state);
             if let Some(last_story) = last_story {
                 print_story_details(last_story.id).await?;
+            } else {
+                eprintln!("Invalid story index.")
+            }
+        }
+        ("open", matches) => {
+            let last_story = get_story_from_matches(matches, &state);
+            if let Some(last_story) = last_story {
+                open_story_link(&last_story).await?;
             } else {
                 eprintln!("Invalid story index.")
             }
@@ -103,6 +114,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     Ok(())
+}
+
+fn get_story_from_matches<'a>(
+    matches: Option<&clap::ArgMatches>,
+    state: &'a State,
+) -> Option<&'a Story> {
+    matches
+        .and_then(|matches| matches.value_of("INDEX"))
+        .and_then(|index_str| result_to_option(index_str.parse::<usize>()))
+        .and_then(|index| state.get_last_story(index))
 }
 
 fn result_to_option<T, E>(result: Result<T, E>) -> Option<T> {
@@ -128,6 +149,17 @@ async fn print_story_details(id: u32) -> Result<(), Box<dyn Error>> {
 
     let story = api.story_details(id).await?;
     println!("{}", format_story_details(&story));
+    Ok(())
+}
+
+async fn open_story_link(story: &Story) -> Result<(), Box<dyn Error>> {
+    if let Some(url) = &story.url {
+        if webbrowser::open(url.as_str()).is_err() {
+            eprintln!("Error while opening the default browser.");
+        }
+    } else {
+        eprintln!("No URL is associated to the story.")
+    }
     Ok(())
 }
 
