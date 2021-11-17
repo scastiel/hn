@@ -58,7 +58,7 @@ pub struct Story {
     pub parent: Option<u32>,
     pub poll: Option<u32>,
     pub kids: Option<Vec<u32>>,
-    pub url: Url,
+    pub url: Option<Url>,
     pub score: Option<u32>,
     pub title: String,
     pub parts: Option<u32>,
@@ -72,13 +72,13 @@ impl ApiClient {
         }
     }
 
-    pub async fn top_stories_ids(
+    pub async fn stories_ids(
         &self,
+        list: &str,
         pagination: PaginationOptions,
     ) -> Result<Vec<u32>, reqwest::Error> {
-        let ids = self
-            .json::<Vec<u32>>("https://hacker-news.firebaseio.com/v0/topstories.json")
-            .await?;
+        let url = format!("https://hacker-news.firebaseio.com/v0/{}.json", list);
+        let ids = self.json::<Vec<u32>>(url.as_str()).await?;
         let ids = ids[pagination.from..pagination.to].to_vec();
         Ok(ids)
     }

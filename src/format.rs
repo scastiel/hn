@@ -9,7 +9,11 @@ pub fn format_story(i: usize, story: &Story) -> String {
         "{:2}. ▲ {} {}\n      {}",
         i + 1,
         format_story_title(&story.title),
-        format_story_short_url(&story.url),
+        story
+            .url
+            .as_ref()
+            .map(|url| format_story_short_url(&url))
+            .unwrap_or("".to_string()),
         format_second_line(&story),
     )
 }
@@ -19,7 +23,11 @@ pub fn format_story_details(story: &Story) -> String {
         "▲ {}\n  {}\n  ↳ {}{}",
         format_story_title(&story.title),
         format_second_line(&story),
-        format_story_url(&story.url),
+        story
+            .url
+            .as_ref()
+            .map(|url| format_story_url(&url))
+            .unwrap_or("".to_string()),
         story
             .text
             .as_ref()

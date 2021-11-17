@@ -30,6 +30,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .about("Print top stories (default command)"),
         )
         .subcommand(
+            SubCommand::with_name("new")
+                .alias("n")
+                .about("Print new stories"),
+        )
+        .subcommand(
+            SubCommand::with_name("best")
+                .alias("b")
+                .about("Print best stories"),
+        )
+        .subcommand(
+            SubCommand::with_name("ask")
+                .alias("a")
+                .about("Print ask stories"),
+        )
+        .subcommand(
+            SubCommand::with_name("show")
+                .alias("s")
+                .about("Print show stories"),
+        )
+        .subcommand(
+            SubCommand::with_name("job")
+                .alias("j")
+                .about("Print best stories"),
+        )
+        .subcommand(
             SubCommand::with_name("details")
                 .alias("d")
                 .about("Print a story details")
@@ -40,8 +65,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut state = read_state(STATE_PATH);
     match matches.subcommand() {
         ("" | "top", _) => {
-            let stories = print_top_stories().await?;
-            state.last_stories = Some(stories);
+            state.last_stories = Some(print_stories("topstories").await?);
+            save_state(&state, STATE_PATH)?;
+        }
+        ("new", _) => {
+            state.last_stories = Some(print_stories("newstories").await?);
+            save_state(&state, STATE_PATH)?;
+        }
+        ("best", _) => {
+            state.last_stories = Some(print_stories("beststories").await?);
+            save_state(&state, STATE_PATH)?;
+        }
+        ("ask", _) => {
+            state.last_stories = Some(print_stories("askstories").await?);
+            save_state(&state, STATE_PATH)?;
+        }
+        ("show", _) => {
+            state.last_stories = Some(print_stories("showstories").await?);
+            save_state(&state, STATE_PATH)?;
+        }
+        ("job", _) => {
+            state.last_stories = Some(print_stories("jobstories").await?);
             save_state(&state, STATE_PATH)?;
         }
         ("details", matches) => {
@@ -65,10 +109,10 @@ fn result_to_option<T, E>(result: Result<T, E>) -> Option<T> {
     result.map(|i| Some(i)).unwrap_or(None)
 }
 
-async fn print_top_stories() -> Result<HashMap<usize, Story>, Box<dyn Error>> {
+async fn print_stories(list: &str) -> Result<HashMap<usize, Story>, Box<dyn Error>> {
     let api = ApiClient::new();
 
-    let stories_ids = api.top_stories_ids(PaginationOptions::default()).await?;
+    let stories_ids = api.stories_ids(list, PaginationOptions::default()).await?;
 
     let mut stories: HashMap<usize, Story> = HashMap::new();
     for (i, &story_id) in stories_ids.iter().enumerate() {
