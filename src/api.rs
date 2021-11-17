@@ -1,5 +1,6 @@
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 use serde::{de::DeserializeOwned, Deserialize};
 use url::Url;
 
@@ -27,7 +28,7 @@ pub struct ApiClient {
     client: reqwest::Client,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Type {
     #[serde(rename = "job")]
     Job,
@@ -41,7 +42,7 @@ pub enum Type {
     PollOpt,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Story {
     pub id: u32,
     #[serde(default)]
