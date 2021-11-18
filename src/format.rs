@@ -1,5 +1,8 @@
 use chrono_humanize::HumanTime;
 use console::style;
+use html_escape::decode_html_entities;
+use hyphenation::{Language, Load, Standard};
+use textwrap::{fill, Options};
 use url::Url;
 
 use crate::api::Story;
@@ -20,20 +23,26 @@ pub fn format_story(i: usize, story: &Story) -> String {
 
 pub fn format_story_details(story: &Story) -> String {
     format!(
-        "▲ {}\n  {}\n  ↳ {}{}",
+        "▲ {}\n  {}{}{}",
         format_story_title(&story.title),
         format_second_line(&story),
         story
             .url
             .as_ref()
-            .map(|url| format_story_url(&url))
+            .map(|url| format!("\n  ↳ {}", format_story_url(&url)))
             .unwrap_or("".to_string()),
         story
             .text
             .as_ref()
-            .map(|text| format!("\n{}", text))
+            .map(|text| format!("\n{}", format_story_text(text)))
             .unwrap_or("".to_string()),
     )
+}
+
+fn format_story_text(text: &str) -> String {
+    let dictionary = Standard::from_embedded(Language::EnglishUS).unwrap();
+    let options = Options::new(78).word_splitter(dictionary);
+    fill(&decode_html_entities(text).to_string(), &options)
 }
 
 fn format_story_title(story_title: &str) -> String {
