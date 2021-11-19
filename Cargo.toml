@@ -21,3 +21,5 @@ webbrowser = "0.5.5"
 textwrap = { version = "0.14.2", features = ["hyphenation"] }
 hyphenation = "0.8.4"
 html-escape = "0.2.9"
+regex = "1"
+minus = { version = "4.0.2", features = ["static_output"] }

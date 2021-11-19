@@ -61,7 +61,7 @@ pub struct Story {
     pub deleted: bool,
     #[serde(rename = "type")]
     pub type_: Type,
-    pub by: String,
+    pub by: Option<String>,
     #[serde(with = "ts_seconds")]
     pub time: DateTime<Utc>,
     pub text: Option<String>,
@@ -72,7 +72,7 @@ pub struct Story {
     pub kids: Option<Vec<u32>>,
     pub url: Option<Url>,
     pub score: Option<u32>,
-    pub title: String,
+    pub title: Option<String>,
     pub parts: Option<u32>,
     pub descendants: Option<u32>,
 }

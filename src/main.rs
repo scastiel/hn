@@ -1,13 +1,14 @@
-use crate::format::{format_story, format_story_details};
+use crate::format::{format_comment, format_story, format_story_details};
 use api::{ApiClient, PaginationOptions, Story};
 use clap::{self, crate_authors, crate_description, crate_name, crate_version, Arg, SubCommand};
+use minus::Pager;
 use state::State;
-use std::io::Write;
+use std::fmt::Write as FmtWrite;
+use std::io::Write as IoWrite;
 use std::{
     collections::HashMap,
     error::Error,
     fs::{read_to_string, File},
-    io,
 };
 
 mod api;
@@ -180,10 +181,32 @@ async fn print_stories(
 }
 
 async fn print_story_details(id: u32) -> Result<(), Box<dyn Error>> {
+    let mut output = Pager::new().unwrap();
+    output.set_prompt("More");
+
     let api = ApiClient::new();
 
     let story = api.story_details(id).await?;
-    println!("{}", format_story_details(&story));
+    writeln!(output, "{}", format_story_details(&story))?;
+
+    let comments = story.kids.unwrap_or(vec![]);
+    for comment_id in comments {
+        print_comment(&mut output, comment_id).await?;
+    }
+
+    minus::page_all(output)?;
+
+    Ok(())
+}
+
+async fn print_comment(output: &mut Pager, id: u32) -> Result<(), Box<dyn Error>> {
+    let api = ApiClient::new();
+
+    let story = api.story_details(id).await?;
+    if !story.deleted {
+        writeln!(output, "\n{}", format_comment(&story))?;
+    }
+
     Ok(())
 }
 
@@ -211,7 +234,7 @@ fn read_state(state_path: &str) -> State {
     State::default()
 }
 
-fn save_state(state: &State, state_path: &str) -> Result<(), io::Error> {
+fn save_state(state: &State, state_path: &str) -> Result<(), std::io::Error> {
     let mut file = File::create(state_path)?;
     write!(&mut file, "{}", serde_json::to_string(state).unwrap())?;
     Ok(())
