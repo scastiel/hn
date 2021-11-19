@@ -40,16 +40,26 @@ pub fn format_story_details(story: &Story) -> String {
     )
 }
 
-pub fn format_comment(comment: &Story) -> String {
-    format!(
-        "{}{}",
-        format_comment_header(&comment),
-        comment
-            .text
-            .as_ref()
-            .map(|text| format!("\n{}", format_story_text(text)))
-            .unwrap_or("".to_string()),
+pub fn format_comment(comment: &Story, level: usize) -> String {
+    indent(
+        &format!(
+            "{}{}",
+            format_comment_header(&comment),
+            comment
+                .text
+                .as_ref()
+                .map(|text| format!("\n{}", format_story_text(text)))
+                .unwrap_or("".to_string()),
+        ),
+        level,
     )
+}
+
+pub fn indent(text: &str, level: usize) -> String {
+    text.lines()
+        .map(|line| format!("{}{}", "  ".repeat(level), line))
+        .collect::<Vec<String>>()
+        .join("\n")
 }
 
 fn format_story_text(text: &str) -> String {

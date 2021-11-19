@@ -1,6 +1,7 @@
 use crate::format::{format_comment, format_story, format_story_details};
 use api::{ApiClient, PaginationOptions, Story};
 use clap::{self, crate_authors, crate_description, crate_name, crate_version, Arg, SubCommand};
+use futures::future::{BoxFuture, FutureExt};
 use minus::Pager;
 use state::State;
 use std::fmt::Write as FmtWrite;
@@ -191,7 +192,7 @@ async fn print_story_details(id: u32) -> Result<(), Box<dyn Error>> {
 
     let comments = story.kids.unwrap_or(vec![]);
     for comment_id in comments {
-        print_comment(&mut output, comment_id).await?;
+        print_comment(&mut output, comment_id, 0).await?;
     }
 
     minus::page_all(output)?;
@@ -199,15 +200,25 @@ async fn print_story_details(id: u32) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn print_comment(output: &mut Pager, id: u32) -> Result<(), Box<dyn Error>> {
-    let api = ApiClient::new();
+fn print_comment<'a>(
+    output: &'a mut Pager,
+    id: u32,
+    level: usize,
+) -> BoxFuture<'a, Result<(), Box<dyn Error>>> {
+    async move {
+        let api = ApiClient::new();
 
-    let story = api.story_details(id).await?;
-    if !story.deleted {
-        writeln!(output, "\n{}", format_comment(&story))?;
+        let comment = api.story_details(id).await?;
+        if !comment.deleted {
+            writeln!(output, "\n{}", format_comment(&comment, level))?;
+            for comment_id in comment.kids.unwrap_or(vec![]) {
+                print_comment(output, comment_id, level + 1).await?;
+            }
+        }
+
+        Ok(())
     }
-
-    Ok(())
+    .boxed()
 }
 
 async fn open_story_link(story: &Story) -> Result<(), Box<dyn Error>> {
