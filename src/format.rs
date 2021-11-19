@@ -35,23 +35,20 @@ pub fn format_story_details(story: &Story) -> String {
         story
             .text
             .as_ref()
-            .map(|text| format!("\n\n{}", format_story_text(text)))
+            .map(|text| format!("\n\n{}", format_story_text(text, 0)))
             .unwrap_or("".to_string()),
     )
 }
 
 pub fn format_comment(comment: &Story, level: usize) -> String {
-    indent(
-        &format!(
-            "{}{}",
-            format_comment_header(&comment),
-            comment
-                .text
-                .as_ref()
-                .map(|text| format!("\n{}", format_story_text(text)))
-                .unwrap_or("".to_string()),
-        ),
-        level,
+    format!(
+        "{}{}",
+        indent(&format_comment_header(&comment), level),
+        comment
+            .text
+            .as_ref()
+            .map(|text| format!("\n{}", format_story_text(text, level)))
+            .unwrap_or("".to_string()),
     )
 }
 
@@ -62,15 +59,18 @@ pub fn indent(text: &str, level: usize) -> String {
         .join("\n")
 }
 
-fn format_story_text(text: &str) -> String {
+fn format_story_text(text: &str, level: usize) -> String {
     let text = text.replace("<p>", "\n\n");
     let text = decode_html_entities(&text);
     let text = Regex::new("<a href=\".*\">(.*)</a>")
         .unwrap()
-        .replace_all(&text, style("$1").underlined().to_string());
+        .replace_all(&text, style("$1").dim().to_string());
+    let text = Regex::new("<i>(.*)</i>")
+        .unwrap()
+        .replace_all(&text, style("$1").italic().to_string());
     let dictionary = Standard::from_embedded(Language::EnglishUS).unwrap();
-    let options = Options::new(78).word_splitter(dictionary);
-    fill(&text, &options)
+    let options = Options::new(80 - level * 2).word_splitter(dictionary);
+    indent(&fill(&text, &options), level)
 }
 
 fn format_story_title(story_title: &str) -> String {
