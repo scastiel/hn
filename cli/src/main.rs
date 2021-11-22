@@ -1,7 +1,7 @@
 use crate::format::{format_comment, format_story, format_story_details};
-use api::{ApiClient, PaginationOptions, Story};
 use clap::{self, crate_authors, crate_description, crate_name, crate_version, Arg, SubCommand};
 use futures::future::{BoxFuture, FutureExt};
+use hn_api::{stories_list, story_details, Comment, Story, StoryList};
 use minus::Pager;
 use state::State;
 use std::fmt::Write as FmtWrite;
@@ -12,7 +12,6 @@ use std::{
     fs::{read_to_string, File},
 };
 
-mod api;
 mod format;
 mod state;
 
@@ -84,39 +83,39 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut state = read_state(STATE_PATH);
     match matches.subcommand() {
         ("" | "top", matches) => {
-            let pagination = get_pagination_from_matches(matches);
+            let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories("topstories", pagination, state.last_stories).await?);
+                Some(print_stories(StoryList::News, page, state.last_stories).await?);
             save_state(&state, STATE_PATH)?;
         }
         ("new", matches) => {
-            let pagination = get_pagination_from_matches(matches);
+            let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories("newstories", pagination, state.last_stories).await?);
+                Some(print_stories(StoryList::Newest, page, state.last_stories).await?);
             save_state(&state, STATE_PATH)?;
         }
         ("best", matches) => {
-            let pagination = get_pagination_from_matches(matches);
+            let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories("beststories", pagination, state.last_stories).await?);
+                Some(print_stories(StoryList::Best, page, state.last_stories).await?);
             save_state(&state, STATE_PATH)?;
         }
         ("ask", matches) => {
-            let pagination = get_pagination_from_matches(matches);
+            let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories("askstories", pagination, state.last_stories).await?);
+                Some(print_stories(StoryList::Ask, page, state.last_stories).await?);
             save_state(&state, STATE_PATH)?;
         }
         ("show", matches) => {
-            let pagination = get_pagination_from_matches(matches);
+            let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories("showstories", pagination, state.last_stories).await?);
+                Some(print_stories(StoryList::Show, page, state.last_stories).await?);
             save_state(&state, STATE_PATH)?;
         }
         ("job", matches) => {
-            let pagination = get_pagination_from_matches(matches);
+            let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories("jobstories", pagination, state.last_stories).await?);
+                Some(print_stories(StoryList::Jobs, page, state.last_stories).await?);
             save_state(&state, STATE_PATH)?;
         }
         ("details", matches) => {
@@ -141,12 +140,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn get_pagination_from_matches(matches: Option<&clap::ArgMatches>) -> PaginationOptions {
+fn get_page_from_matches(matches: Option<&clap::ArgMatches>) -> usize {
     matches
         .and_then(|matches| matches.value_of("page"))
         .and_then(|page_str| result_to_option(page_str.parse::<usize>()))
-        .map(|page| PaginationOptions::page(page))
-        .unwrap_or(PaginationOptions::default())
+        .unwrap_or(1)
 }
 
 fn get_story_from_matches<'a>(
@@ -164,35 +162,32 @@ fn result_to_option<T, E>(result: Result<T, E>) -> Option<T> {
 }
 
 async fn print_stories(
-    list: &str,
-    pagination: PaginationOptions,
+    list: StoryList,
+    page: usize,
     last_stories: Option<HashMap<usize, Story>>,
 ) -> Result<HashMap<usize, Story>, Box<dyn Error>> {
-    let api = ApiClient::new();
-
-    let stories_ids = api.stories_ids(list, &pagination).await?;
-
-    let mut stories = last_stories.unwrap_or(HashMap::new());
-    for (i, &story_id) in stories_ids.iter().enumerate() {
-        let story = api.story_details(story_id).await?;
-        println!("{}", format_story(i + pagination.from, &story));
-        stories.insert(i + pagination.from + 1, story);
+    let stories = stories_list(list, page).await?;
+    let mut last_stories = last_stories.unwrap_or(HashMap::new());
+    let mut ranks: Vec<usize> = stories.keys().copied().collect();
+    ranks.sort();
+    for rank in ranks {
+        let story = stories.get(&rank).unwrap();
+        println!("{}", format_story(rank, &story));
     }
-    Ok(stories)
+    last_stories.extend(stories);
+    Ok(last_stories)
 }
 
 async fn print_story_details(id: u32) -> Result<(), Box<dyn Error>> {
     let mut output = Pager::new().unwrap();
     output.set_prompt("More");
 
-    let api = ApiClient::new();
+    let details = story_details(id).await?;
+    writeln!(output, "{}", format_story_details(&details))?;
 
-    let story = api.story_details(id).await?;
-    writeln!(output, "{}", format_story_details(&story))?;
-
-    let comments = story.kids.unwrap_or(vec![]);
-    for comment_id in comments {
-        print_comment(&mut output, comment_id, 0).await?;
+    let comments = details.comments;
+    for comment in comments {
+        print_comment(&mut output, &comment, 0).await?;
     }
 
     minus::page_all(output)?;
@@ -202,18 +197,13 @@ async fn print_story_details(id: u32) -> Result<(), Box<dyn Error>> {
 
 fn print_comment<'a>(
     output: &'a mut Pager,
-    id: u32,
+    comment: &'a Comment,
     level: usize,
 ) -> BoxFuture<'a, Result<(), Box<dyn Error>>> {
     async move {
-        let api = ApiClient::new();
-
-        let comment = api.story_details(id).await?;
-        if !comment.deleted {
-            writeln!(output, "\n{}", format_comment(&comment, level))?;
-            for comment_id in comment.kids.unwrap_or(vec![]) {
-                print_comment(output, comment_id, level + 1).await?;
-            }
+        writeln!(output, "\n{}", format_comment(&comment, level))?;
+        for child_comment in &comment.children {
+            print_comment(output, child_comment, level + 1).await?;
         }
 
         Ok(())
@@ -222,12 +212,8 @@ fn print_comment<'a>(
 }
 
 async fn open_story_link(story: &Story) -> Result<(), Box<dyn Error>> {
-    if let Some(url) = &story.url {
-        if webbrowser::open(url.as_str()).is_err() {
-            eprintln!("Error while opening the default browser.");
-        }
-    } else {
-        eprintln!("No URL is associated to the story.")
+    if webbrowser::open(story.url.as_str()).is_err() {
+        eprintln!("Error while opening the default browser.");
     }
     Ok(())
 }

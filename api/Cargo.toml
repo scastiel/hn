@@ -1,0 +1,12 @@
+[package]
+name = "hn_api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+scraper = "0.12.0"
+reqwest = { version = "0.11", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+chrono = { version = "0.4.19", features = ["serde"] }
+url = { version = "2.2.2", features = ["serde"] }
+serde = { version = "1.0.130", features = ["derive"] }

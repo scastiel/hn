@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
+use hn_api::Story;
 use serde::{Deserialize, Serialize};
-
-use crate::api::Story;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct State {
