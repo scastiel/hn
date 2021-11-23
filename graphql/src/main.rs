@@ -29,7 +29,7 @@ struct Story {
 }
 
 impl Story {
-    pub fn from_api_story(story: &hn_api::Story) -> Story {
+    pub fn from_api_story(story: &hnapi::Story) -> Story {
         Story {
             id: story.id as i32,
             title: story.title.clone(),
@@ -55,7 +55,7 @@ struct StoryWithRank {
 }
 
 impl StoryWithRank {
-    pub fn from_api_story(rank: usize, story: &hn_api::Story) -> StoryWithRank {
+    pub fn from_api_story(rank: usize, story: &hnapi::Story) -> StoryWithRank {
         StoryWithRank {
             rank: rank as i32,
             story: Story::from_api_story(story),
@@ -87,14 +87,14 @@ impl Default for StoryList {
 }
 
 impl StoryList {
-    pub fn to_api_story_list(&self) -> hn_api::StoryList {
+    pub fn to_api_story_list(&self) -> hnapi::StoryList {
         match self {
-            StoryList::News => hn_api::StoryList::News,
-            StoryList::Newest => hn_api::StoryList::Newest,
-            StoryList::Ask => hn_api::StoryList::Ask,
-            StoryList::Show => hn_api::StoryList::Show,
-            StoryList::Jobs => hn_api::StoryList::Jobs,
-            StoryList::Best => hn_api::StoryList::Best,
+            StoryList::News => hnapi::StoryList::News,
+            StoryList::Newest => hnapi::StoryList::Newest,
+            StoryList::Ask => hnapi::StoryList::Ask,
+            StoryList::Show => hnapi::StoryList::Show,
+            StoryList::Jobs => hnapi::StoryList::Jobs,
+            StoryList::Best => hnapi::StoryList::Best,
         }
     }
 }
@@ -120,7 +120,7 @@ struct Comment {
 }
 
 impl Comment {
-    pub fn from_api_comment(comment: &hn_api::Comment, parent: Option<u32>) -> Vec<Comment> {
+    pub fn from_api_comment(comment: &hnapi::Comment, parent: Option<u32>) -> Vec<Comment> {
         let mut comments = vec![Comment {
             parent: parent.map(|parent| parent as i32),
             id: comment.id as i32,
@@ -139,7 +139,7 @@ impl Comment {
         comments
     }
 
-    pub fn flatten_tree(comments: &Vec<hn_api::Comment>, parent: Option<u32>) -> Vec<Comment> {
+    pub fn flatten_tree(comments: &Vec<hnapi::Comment>, parent: Option<u32>) -> Vec<Comment> {
         comments
             .iter()
             .flat_map(|child| Comment::from_api_comment(child, parent))
@@ -159,7 +159,7 @@ struct StoryWithDetails {
 }
 
 impl StoryWithDetails {
-    pub fn from_api_story(details: &hn_api::StoryWithDetails) -> StoryWithDetails {
+    pub fn from_api_story(details: &hnapi::StoryWithDetails) -> StoryWithDetails {
         StoryWithDetails {
             story: Story::from_api_story(&details.story),
             html_content: details.html_content.clone(),
@@ -184,7 +184,7 @@ struct Query;
 impl Query {
     /// Get all the stories for a given list at a given page.
     async fn stories(input: StoriesInListInput) -> Result<Vec<StoryWithRank>, FieldError> {
-        let stories = hn_api::stories_list(
+        let stories = hnapi::stories_list(
             input.list.unwrap_or_default().to_api_story_list(),
             input.page.unwrap_or(1) as usize,
         )
@@ -202,7 +202,7 @@ impl Query {
 
     /// Get the details about a given story. Will return `null` for a non-existent story ID.
     async fn story(id: i32) -> Result<Option<StoryWithDetails>, FieldError> {
-        let story_with_details = hn_api::story_details(id as u32).await?;
+        let story_with_details = hnapi::story_details(id as u32).await?;
         Ok(story_with_details.map(|details| StoryWithDetails::from_api_story(&details)))
     }
 }

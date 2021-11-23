@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use hn_api::Story;
+use hnapi::Story;
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Serialize, Deserialize)]

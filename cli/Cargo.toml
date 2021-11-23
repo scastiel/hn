@@ -24,4 +24,4 @@ regex = "1"
 minus = { version = "4.0.2", features = ["static_output"] }
 futures = "0.3.17"
 dirs = "4.0.0"
-hn_api = { path = "../api", version = "0.1.0" }
+hnapi = { path = "../api", version = "0.1.0" }

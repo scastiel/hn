@@ -115,7 +115,7 @@ impl StoryList {
 /// ## Example
 ///
 /// ```
-/// use hn_api::{stories_list, StoryList};
+/// use hnapi::{stories_list, StoryList};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -152,7 +152,7 @@ pub async fn stories_list(
 /// ## Example
 ///
 /// ```
-/// use hn_api::story_details;
+/// use hnapi::story_details;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {

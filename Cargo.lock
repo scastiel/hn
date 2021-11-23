@@ -716,7 +716,7 @@ dependencies = [
  "console",
  "dirs",
  "futures",
- "hn_api",
+ "hnapi",
  "html-escape",
  "hyphenation",
  "minus",
@@ -731,7 +731,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "hn_api"
+name = "hn_graphql"
+version = "0.1.0"
+dependencies = [
+ "hnapi",
+ "juniper",
+ "juniper_warp",
+ "serde_json",
+ "tokio 1.14.0",
+ "warp",
+]
+
+[[package]]
+name = "hnapi"
 version = "0.1.0"
 dependencies = [
  "chrono",
@@ -740,18 +752,6 @@ dependencies = [
  "serde",
  "tokio 1.14.0",
  "url",
-]
-
-[[package]]
-name = "hn_graphql"
-version = "0.1.0"
-dependencies = [
- "hn_api",
- "juniper",
- "juniper_warp",
- "serde_json",
- "tokio 1.14.0",
- "warp",
 ]
 
 [[package]]

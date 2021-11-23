@@ -1,5 +1,5 @@
 use console::style;
-use hn_api::{Comment, Story, StoryWithDetails};
+use hnapi::{Comment, Story, StoryWithDetails};
 use html_escape::decode_html_entities;
 use hyphenation::{Language, Load, Standard};
 use regex::Regex;

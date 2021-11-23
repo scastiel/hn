@@ -1,9 +1,9 @@
-# `hn_api`, a create to query stories from [HackerNews](https://news.ycombinator.com/).
+# `hnapi`, a crate to query stories from [HackerNews](https://news.ycombinator.com/).
 
 For now, it supports two operations:
 
-- list stories using [`stories_list`](https://docs.rs/hn_api/latest/hn_api/fn.stories_list.html)
-- get details and comments for a story using [`story_details`](https://docs.rs/hn_api/latest/hn_api/fn.story_details.html)
+- list stories using [`stories_list`](https://docs.rs/hnapi/latest/hnapi/fn.stories_list.html)
+- get details and comments for a story using [`story_details`](https://docs.rs/hnapi/latest/hnapi/fn.story_details.html)
 
 Refer to their respective documentations to see usage examples.
 

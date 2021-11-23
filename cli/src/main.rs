@@ -1,7 +1,7 @@
 use crate::format::{format_comment, format_story, format_story_details};
 use clap::{self, crate_authors, crate_description, crate_name, crate_version, Arg, SubCommand};
 use futures::future::{BoxFuture, FutureExt};
-use hn_api::{stories_list, story_details, Comment, Story, StoryList};
+use hnapi::{stories_list, story_details, Comment, Story, StoryList};
 use minus::Pager;
 use state::State;
 use std::fmt::Write as FmtWrite;
