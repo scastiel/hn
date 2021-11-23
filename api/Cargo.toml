@@ -2,6 +2,11 @@
 name = "hn_api"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+authors = ["Sebastien Castiel <sebastien@castiel.me>"]
+description = "A library to query HackerNews."
+homepage = "https://github.com/scastiel/hn"
+repository = "https://github.com/scastiel/hn"
 
 [dependencies]
 scraper = "0.12.0"

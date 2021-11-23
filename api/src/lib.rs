@@ -1,3 +1,15 @@
+//! Use this crate to query stories from [HackerNews](https://news.ycombinator.com/).
+//!
+//! For now, it supports two operations:
+//!   - list stories using [`stories_list`]
+//!   - get details and comments for a story using [`story_details`]
+//!
+//! Refer to their respective documentations to see usage examples.
+//!
+//! **Note:** information is obtained by scraping the HackerNews website. The reason this crate
+//! does not use the [official API](https://github.com/HackerNews/API) is that it does
+//! not provide a convenient way to get all the comments for a given story.
+
 use crate::tree::SubTree;
 use chrono::{DateTime, Utc};
 use scraper::{ElementRef, Html, Selector};
@@ -10,47 +22,78 @@ extern crate chrono;
 extern crate reqwest;
 extern crate scraper;
 extern crate serde;
+extern crate url;
 
 mod tree;
 
 const BASE_URL: &str = "https://news.ycombinator.com";
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Information about a story.
 pub struct Story {
+    /// ID of the story.
     pub id: u32,
+    /// Story title.
     pub title: String,
+    /// Story full URL. For the text stories, the URL will be on “news.ycombinator.org”.
     pub url: Url,
+    /// URL as it is display. Often the domain only (e.g. “google.com”), possibly with
+    /// additions (e.g. “github.com/scastiel”).
     pub url_displayed: Option<String>,
+    /// Nickname of the user who posted the story.
     pub user: Option<String>,
+    /// Score of the story at this instant.
     pub score: Option<u32>,
+    /// Date the story was posted.
     pub date: DateTime<Utc>,
+    /// Date the story was posted, as it is displayed, e.g. “2 months ago”.
     pub date_displayed: String,
+    /// Number of comments posted on the story.
     pub comment_count: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Comment posted on a story. A comment can have a parent if it is a reply
+/// to another comment, and can have children.
 pub struct Comment {
+    /// ID of the comment.
     pub id: u32,
+    /// User who posted the comment.
     pub user: String,
+    /// Date the comment was posted.
     pub date: DateTime<Utc>,
+    /// Date the comment was posted, as it is displayed, e.g. “2 months ago”.
     pub date_displayed: String,
+    /// HTML content of the comment.
     pub html_content: String,
+    /// Reply comments.
     pub children: Vec<Comment>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Combination of a story, its HTML content, and its comments.
 pub struct StoryWithDetails {
+    /// Information about the story.
     pub story: Story,
+    /// HTML content of the story.
     pub html_content: Option<String>,
+    /// List of the comments posted on the story.
     pub comments: Vec<Comment>,
 }
 
+/// Available story lists.
 pub enum StoryList {
+    /// Top stories.
     News,
+    /// New stories.
     Newest,
+    /// “Ask HN” stories.
     Ask,
+    /// “Show HN” stories.
     Show,
+    /// Job stories.
     Jobs,
+    /// Best stories.
     Best,
 }
 
@@ -67,6 +110,24 @@ impl StoryList {
     }
 }
 
+/// Get all the stories for a given list at a given page.
+///
+/// ## Example
+///
+/// ```
+/// use hn_api::{stories_list, StoryList};
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let stories = stories_list(StoryList::News, 1).await?;
+///     assert_eq!(stories.len(), 30);
+///     let first_story = stories.get(&1);
+///     assert!(first_story.is_some());
+///     let first_story = first_story.unwrap();
+///     println!("{:#?}", first_story);
+///     Ok(())
+/// }
+/// ```
 pub async fn stories_list(
     list: StoryList,
     page: usize,
@@ -86,6 +147,26 @@ pub async fn stories_list(
     Ok(stories)
 }
 
+/// Get the details about a given story. Will return `null` for a non-existent story ID.
+///
+/// ## Example
+///
+/// ```
+/// use hn_api::story_details;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let details = story_details(29203502).await?;
+///     assert!(details.is_some());
+///     let details = details.unwrap();
+///     println!("{:#?}", details);
+///     assert!(details.story.title.contains("Lifeee"));
+///     assert_eq!(details.story.user, Some("scastiel".to_string()));
+///     assert!(details.html_content.is_none());
+///     assert!(details.comments.len() > 10);
+///     Ok(())
+/// }
+/// ```
 pub async fn story_details(id: u32) -> Result<Option<StoryWithDetails>, Box<dyn Error>> {
     let url = format!("{}/item?id={}", BASE_URL, id);
     let document = document_at_url(&url).await?;
