@@ -1,5 +1,8 @@
 # `hnapi`, a crate to query stories from [HackerNews](https://news.ycombinator.com/).
 
+[![Crates.io](https://img.shields.io/crates/v/hnapi)](https://crates.io/crates/hnapi)
+[![Rust](https://github.com/scastiel/hn/actions/workflows/rust.yml/badge.svg)](https://github.com/scastiel/hn/actions/workflows/rust.yml)
+
 For now, it supports two operations:
 
 - list stories using [`stories_list`](https://docs.rs/hnapi/latest/hnapi/fn.stories_list.html)
