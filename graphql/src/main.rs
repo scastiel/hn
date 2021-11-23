@@ -2,7 +2,7 @@
 extern crate juniper;
 
 use juniper::{EmptyMutation, EmptySubscription, FieldError, GraphQLObject, RootNode};
-use warp::Filter;
+use warp::{hyper::Uri, Filter};
 
 #[derive(GraphQLObject)]
 /// Information about a story.
@@ -220,12 +220,13 @@ async fn main() {
         .unwrap_or(8080);
     println!("Listening on port {}...", port);
 
-    warp::serve(
-        warp::get()
-            .and(warp::path("graphiql"))
-            .and(juniper_warp::graphiql_filter("/graphql", None))
-            .or(warp::path("graphql").and(graphql_filter)),
-    )
-    .run(([0, 0, 0, 0], port))
-    .await
+    let graphiql_route = warp::get()
+        .and(warp::path("graphiql"))
+        .and(juniper_warp::graphiql_filter("/graphql", None));
+    let graphql_route = warp::path("graphql").and(graphql_filter);
+    let default_route = warp::path::end().map(|| warp::redirect(Uri::from_static("/graphiql")));
+
+    warp::serve(graphiql_route.or(graphql_route).or(default_route))
+        .run(([0, 0, 0, 0], port))
+        .await
 }
