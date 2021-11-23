@@ -23,4 +23,5 @@ html-escape = "0.2.9"
 regex = "1"
 minus = { version = "4.0.2", features = ["static_output"] }
 futures = "0.3.17"
+dirs = "4.0.0"
 hn_api = { path = "../api" }

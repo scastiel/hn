@@ -17,7 +17,12 @@ mod state;
 
 extern crate reqwest;
 
-const STATE_PATH: &str = ".hn.json";
+fn get_state_path() -> String {
+    dirs::home_dir()
+        .and_then(|home_dir| home_dir.to_str().map(ToString::to_string))
+        .map(|home_dir| format!("{}/.hn.json", home_dir))
+        .expect("Can’t get home directory.")
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -80,43 +85,44 @@ async fn main() -> Result<(), Box<dyn Error>> {
         )
         .get_matches();
 
-    let mut state = read_state(STATE_PATH);
+    let state_path = get_state_path();
+    let mut state = read_state(&state_path);
     match matches.subcommand() {
         ("" | "top", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
                 Some(print_stories(StoryList::News, page, state.last_stories).await?);
-            save_state(&state, STATE_PATH)?;
+            save_state(&state, &state_path)?;
         }
         ("new", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
                 Some(print_stories(StoryList::Newest, page, state.last_stories).await?);
-            save_state(&state, STATE_PATH)?;
+            save_state(&state, &state_path)?;
         }
         ("best", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
                 Some(print_stories(StoryList::Best, page, state.last_stories).await?);
-            save_state(&state, STATE_PATH)?;
+            save_state(&state, &state_path)?;
         }
         ("ask", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
                 Some(print_stories(StoryList::Ask, page, state.last_stories).await?);
-            save_state(&state, STATE_PATH)?;
+            save_state(&state, &state_path)?;
         }
         ("show", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
                 Some(print_stories(StoryList::Show, page, state.last_stories).await?);
-            save_state(&state, STATE_PATH)?;
+            save_state(&state, &state_path)?;
         }
         ("job", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
                 Some(print_stories(StoryList::Jobs, page, state.last_stories).await?);
-            save_state(&state, STATE_PATH)?;
+            save_state(&state, &state_path)?;
         }
         ("details", matches) => {
             let last_story = get_story_from_matches(matches, &state);
