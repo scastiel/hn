@@ -1,0 +1,12 @@
+[package]
+name = "hn_graphql"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["macros"] }
+serde_json = "1.0"
+juniper = { version = "0.15.7" }
+juniper_warp = "0.7.0"
+warp = "0.3"
+hn_api = { path = "../api" }

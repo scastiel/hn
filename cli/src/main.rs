@@ -182,7 +182,7 @@ async fn print_story_details(id: u32) -> Result<(), Box<dyn Error>> {
     let mut output = Pager::new().unwrap();
     output.set_prompt("More");
 
-    let details = story_details(id).await?;
+    let details = story_details(id).await?.unwrap();
     writeln!(output, "{}", format_story_details(&details))?;
 
     let comments = details.comments;

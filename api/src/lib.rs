@@ -86,48 +86,50 @@ pub async fn stories_list(
     Ok(stories)
 }
 
-pub async fn story_details(id: u32) -> Result<StoryWithDetails, Box<dyn Error>> {
+pub async fn story_details(id: u32) -> Result<Option<StoryWithDetails>, Box<dyn Error>> {
     let url = format!("{}/item?id={}", BASE_URL, id);
     let document = document_at_url(&url).await?;
+    if let Some(tr) = single_doc_element(&document, "table.fatitem tr.athing") {
+        let story = extract_story_info(&tr);
 
-    let tr = single_doc_element(&document, "table.fatitem tr.athing").unwrap();
-    let story = extract_story_info(&tr);
+        let html_content = tr
+            .next_sibling()
+            .and_then(|el| el.next_sibling())
+            .and_then(|el| el.next_sibling())
+            .and_then(|el| el.next_sibling())
+            .and_then(|el| el.first_child())
+            .and_then(|el| el.next_sibling())
+            .and_then(ElementRef::wrap)
+            .map(|el| el.inner_html())
+            .filter(|html| !html.contains("<form "));
 
-    let html_content = tr
-        .next_sibling()
-        .and_then(|el| el.next_sibling())
-        .and_then(|el| el.next_sibling())
-        .and_then(|el| el.next_sibling())
-        .and_then(|el| el.first_child())
-        .and_then(|el| el.next_sibling())
-        .and_then(ElementRef::wrap)
-        .map(|el| el.inner_html())
-        .filter(|html| !html.contains("<form "));
+        let mut comments_map: HashMap<u32, Comment> = HashMap::new();
+        let mut comments_ids_with_indents: Vec<(usize, u32)> = vec![];
+        let comments_selector = Selector::parse(".comment-tree tr.comtr").unwrap();
+        let comment_trs = document.select(&comments_selector);
+        for comment_tr in comment_trs {
+            let ind_selector = Selector::parse(".ind").unwrap();
+            let indent = comment_tr
+                .select(&ind_selector)
+                .nth(0)
+                .and_then(|ind| ind.value().attr("indent"))
+                .map(|ind| ind.parse::<usize>().unwrap())
+                .unwrap_or(0);
+            let comment = extract_comment_info(&comment_tr);
+            comments_ids_with_indents.push((indent, comment.id));
+            comments_map.insert(comment.id, comment);
+        }
+        let comments = make_comments_tree(&comments_ids_with_indents, &mut comments_map);
 
-    let mut comments_map: HashMap<u32, Comment> = HashMap::new();
-    let mut comments_ids_with_indents: Vec<(usize, u32)> = vec![];
-    let comments_selector = Selector::parse(".comment-tree tr.comtr").unwrap();
-    let comment_trs = document.select(&comments_selector);
-    for comment_tr in comment_trs {
-        let ind_selector = Selector::parse(".ind").unwrap();
-        let indent = comment_tr
-            .select(&ind_selector)
-            .nth(0)
-            .and_then(|ind| ind.value().attr("indent"))
-            .map(|ind| ind.parse::<usize>().unwrap())
-            .unwrap_or(0);
-        let comment = extract_comment_info(&comment_tr);
-        comments_ids_with_indents.push((indent, comment.id));
-        comments_map.insert(comment.id, comment);
+        let story_details = StoryWithDetails {
+            story,
+            html_content,
+            comments,
+        };
+        Ok(Some(story_details))
+    } else {
+        Ok(None)
     }
-    let comments = make_comments_tree(&comments_ids_with_indents, &mut comments_map);
-
-    let story_details = StoryWithDetails {
-        story,
-        html_content,
-        comments,
-    };
-    Ok(story_details)
 }
 
 fn make_comments_tree(
@@ -284,7 +286,7 @@ mod tests {
 
     #[tokio::test]
     async fn story_details_return_something() -> Result<(), Box<dyn Error>> {
-        let details = story_details(27883047).await?;
+        let details = story_details(27883047).await?.unwrap();
         assert_eq!(details.story.id, 27883047);
         assert_eq!(
             details.story.title,
@@ -312,7 +314,7 @@ mod tests {
 
     #[tokio::test]
     async fn story_details_return_something_with_text() -> Result<(), Box<dyn Error>> {
-        let details = story_details(29246573).await?;
+        let details = story_details(29246573).await?.unwrap();
         assert_eq!(details.html_content, Some("I have been programming web and backend stuff for over a decade but I have never done any kind of image processing. I tried googling but there is so much noise in the QR space.<p>What I want to know is, how does QR scanner code work? How do you go from a photo of a QR to the encoded text within, allowing for all of the factors that will get in the way like poor quality cameras, off-center photos, blurriness etc? Is there a code-first tutorial or worked example somewhere?</p>".to_string()));
         Ok(())
     }
