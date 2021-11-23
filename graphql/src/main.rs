@@ -215,12 +215,17 @@ async fn main() {
     let state = warp::any().map(move || ());
     let graphql_filter = juniper_warp::make_graphql_filter(schema, state.boxed());
 
+    let port = std::env::var("PORT")
+        .map(|p| p.parse().expect("PORT must be a number"))
+        .unwrap_or(8080);
+    println!("Listening on port {}...", port);
+
     warp::serve(
         warp::get()
             .and(warp::path("graphiql"))
             .and(juniper_warp::graphiql_filter("/graphql", None))
             .or(warp::path("graphql").and(graphql_filter)),
     )
-    .run(([127, 0, 0, 1], 8080))
+    .run(([0, 0, 0, 0], port))
     .await
 }
