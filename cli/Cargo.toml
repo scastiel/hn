@@ -1,11 +1,16 @@
 [package]
-name = "hn"
+name = "hn-cli"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 description = "Another HackerNews command-line client."
 authors = ["Sebastien Castiel <sebastien@castiel.me>"]
+homepage = "https://github.com/scastiel/hn"
+repository = "https://github.com/scastiel/hn"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "hn"
+path = "src/main.rs"
 
 [dependencies]
 reqwest = { version = "0.10.0", features = ["json"] }
