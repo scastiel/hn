@@ -1,7 +1,12 @@
 [package]
-name = "hn_graphql"
+name = "hn-graphql"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "A non-official HackerNews GraphQL API"
+authors = ["Sebastien Castiel <sebastien@castiel.me>"]
+homepage = "https://github.com/scastiel/hn"
+repository = "https://github.com/scastiel/hn"
 
 [dependencies]
 tokio = { version = "1", features = ["macros"] }

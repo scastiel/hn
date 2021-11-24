@@ -731,7 +731,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hn_graphql"
+name = "hn-graphql"
 version = "0.1.0"
 dependencies = [
  "hnapi",
