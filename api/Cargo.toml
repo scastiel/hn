@@ -15,3 +15,7 @@ tokio = { version = "1", features = ["full"] }
 chrono = { version = "0.4.19", features = ["serde"] }
 url = { version = "2.2.2", features = ["serde"] }
 serde = { version = "1.0.130", features = ["derive"] }
+regex = "1.5.4"
+
+[dev_dependencies]
+serial_test = "0.5.1"
