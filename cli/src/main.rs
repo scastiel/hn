@@ -1,7 +1,7 @@
-use crate::format::{format_comment, format_story, format_story_details};
+use crate::format::{format_comment, format_story, format_story_details, format_user};
 use clap::{self, crate_authors, crate_description, crate_name, crate_version, Arg, SubCommand};
 use futures::future::{BoxFuture, FutureExt};
-use hnapi::{stories_list, story_details, Comment, Story, StoryList};
+use hnapi::{stories_list, story_details, user_details, Comment, Story, StoryList};
 use minus::Pager;
 use state::State;
 use std::fmt::Write as FmtWrite;
@@ -83,6 +83,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .about("Open a story’s link in the default browser")
                 .arg(Arg::with_name("INDEX").required(true).help("Story index")),
         )
+        .subcommand(
+            SubCommand::with_name("user")
+                .alias("u")
+                .about("Show details about a user")
+                .arg(Arg::with_name("USER_NAME").required(true).help("User name")),
+        )
         .get_matches();
 
     let state_path = get_state_path();
@@ -138,6 +144,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 open_story_link(&last_story).await?;
             } else {
                 eprintln!("Invalid story index.")
+            }
+        }
+        ("user", matches) => {
+            let user_id = matches
+                .and_then(|matches| matches.value_of("USER_NAME"))
+                .unwrap();
+            if let Some(user) = user_details(user_id).await? {
+                println!("{}", format_user(&user));
+            } else {
+                eprintln!("Invalid user name.")
             }
         }
         _ => (),
