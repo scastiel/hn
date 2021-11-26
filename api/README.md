@@ -3,10 +3,11 @@
 [![Crates.io](https://img.shields.io/crates/v/hnapi)](https://crates.io/crates/hnapi)
 [![Rust](https://github.com/scastiel/hn/actions/workflows/rust.yml/badge.svg)](https://github.com/scastiel/hn/actions/workflows/rust.yml)
 
-For now, it supports two operations:
+For now, it supports three operations:
 
 - list stories using [`stories_list`](https://docs.rs/hnapi/latest/hnapi/fn.stories_list.html)
 - get details and comments for a story using [`story_details`](https://docs.rs/hnapi/latest/hnapi/fn.story_details.html)
+- get details about a user using [`user_details`](https://docs.rs/hnapi/latest/hnapi/fn.user_details.html)
 
 Refer to their respective documentations to see usage examples.
 

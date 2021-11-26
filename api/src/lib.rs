@@ -3,6 +3,7 @@
 //! For now, it supports two operations:
 //!   - list stories using [`stories_list`]
 //!   - get details and comments for a story using [`story_details`]
+//!   - get details about a user using [`user_details`]
 //!
 //! Refer to their respective documentations to see usage examples.
 //!
