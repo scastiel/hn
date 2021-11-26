@@ -709,7 +709,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hn-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "clap",
@@ -732,7 +732,7 @@ dependencies = [
 
 [[package]]
 name = "hn-graphql"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "hnapi",
  "juniper",
@@ -744,12 +744,14 @@ dependencies = [
 
 [[package]]
 name = "hnapi"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
+ "regex",
  "reqwest 0.11.6",
  "scraper",
  "serde",
+ "serial_test",
  "tokio 1.14.0",
  "url",
 ]
@@ -1920,6 +1922,28 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serial_test"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0bccbcf40c8938196944a3da0e133e031a33f4d6b72db3bda3cc556e361905d"
+dependencies = [
+ "lazy_static",
+ "parking_lot",
+ "serial_test_derive",
+]
+
+[[package]]
+name = "serial_test_derive"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2acd6defeddb41eb60bb468f8825d0cfd0c2a76bc03bfd235b6a1dc4f6a1ad5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

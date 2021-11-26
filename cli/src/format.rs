@@ -1,10 +1,33 @@
 use console::style;
-use hnapi::{Comment, Story, StoryWithDetails};
+use hnapi::{Comment, Story, StoryWithDetails, User};
 use html_escape::decode_html_entities;
 use hyphenation::{Language, Load, Standard};
 use regex::Regex;
 use textwrap::{fill, Options};
 use url::Url;
+
+pub fn format_user(user: &User) -> String {
+    format!(
+        "{}{}\n{}{}\n{}{}\n{}{}\n",
+        style("user:    ").dim(),
+        user.id,
+        style("created: ").dim(),
+        user.created.format("%v").to_string().trim(),
+        style("karma:   ").dim(),
+        user.karma,
+        style("about:   ").dim(),
+        format_story_text(&user.about, 0)
+            .lines()
+            .enumerate()
+            .map(|(i, line)| if i == 0 {
+                line.to_string()
+            } else {
+                format!("         {}", line)
+            })
+            .collect::<Vec<String>>()
+            .join("\n"),
+    )
+}
 
 pub fn format_story(rank: usize, story: &Story) -> String {
     format!(
@@ -46,7 +69,7 @@ pub fn indent(text: &str, level: usize) -> String {
 }
 
 fn format_story_text(text: &str, level: usize) -> String {
-    let text = text.replace("<p>", "").replace("</p>", "\n\n");
+    let text = text.replace("<p>", "\n\n").replace("</p>", "");
     let text = decode_html_entities(&text);
     let text = Regex::new("<a [^>]*href=\".*\">(.*)</a>")
         .unwrap()
@@ -54,10 +77,13 @@ fn format_story_text(text: &str, level: usize) -> String {
     let text = Regex::new("<i>(.*)</i>")
         .unwrap()
         .replace_all(&text, style("$1").italic().to_string());
-    let text = text.trim();
+    indent(&wrap_text(&text.trim(), 80 - level * 2), level)
+}
+
+fn wrap_text(text: &str, width: usize) -> String {
     let dictionary = Standard::from_embedded(Language::EnglishUS).unwrap();
-    let options = Options::new(80 - level * 2).word_splitter(dictionary);
-    indent(&fill(&text, &options), level)
+    let options = Options::new(width).word_splitter(dictionary);
+    fill(&text, &options)
 }
 
 fn format_story_title(story_title: &str) -> String {

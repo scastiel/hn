@@ -3,6 +3,7 @@
 //! For now, it supports two operations:
 //!   - list stories using [`stories_list`]
 //!   - get details and comments for a story using [`story_details`]
+//!   - get details about a user using [`user_details`]
 //!
 //! Refer to their respective documentations to see usage examples.
 //!
@@ -11,7 +12,8 @@
 //! not provide a convenient way to get all the comments for a given story.
 
 use crate::tree::SubTree;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
+use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error, str::FromStr};
@@ -50,6 +52,19 @@ pub struct Story {
     pub date_displayed: String,
     /// Number of comments posted on the story.
     pub comment_count: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+/// Information about a user.
+pub struct User {
+    // User ID (their username).
+    pub id: String,
+    // Creation date.
+    pub created: NaiveDate,
+    // Karma.
+    pub karma: u32,
+    // About text (biography).
+    pub about: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -213,6 +228,59 @@ pub async fn story_details(id: u32) -> Result<Option<StoryWithDetails>, Box<dyn 
     }
 }
 
+/// Get the details about a given user. Will return `null` for a non-existent user ID.
+///
+/// ## Example
+///
+/// ```
+/// use hnapi::user_details;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let user = user_details("scastiel").await?;
+///     assert!(user.is_some());
+///     let user = user.unwrap();
+///     println!("{:#?}", user);
+///     assert_eq!(user.id, "scastiel".to_string());
+///     Ok(())
+/// }
+/// ```
+pub async fn user_details(id: &str) -> Result<Option<User>, Box<dyn Error>> {
+    let url = format!("{}/user?id={}", BASE_URL, id);
+    let document = document_at_url(&url).await?;
+    if let Some(table) =
+        single_doc_element(&document, "#hnmain > tbody > tr:nth-child(3) > td > table")
+    {
+        let id = single_element_html(&table, "tr:nth-child(1) .hnuser").unwrap();
+
+        let created = single_element(&table, "tr:nth-child(2) > td:nth-child(2) > a")
+            .and_then(|a| a.value().attr("href"))
+            .map(|href| {
+                let caps = Regex::new(r"(?P<date>\d{4}-\d{2}-\d{2})")
+                    .unwrap()
+                    .captures(href)
+                    .unwrap();
+                NaiveDate::from_str(&caps["date"]).unwrap()
+            })
+            .unwrap();
+
+        let karma = single_element_html(&table, "tr:nth-child(3) > td:nth-child(2)")
+            .map(|karma| karma.trim().parse().unwrap())
+            .unwrap();
+        let about = single_element_html(&table, "tr:nth-child(4) > td:nth-child(2)")
+            .map(|about| about.trim().to_string())
+            .unwrap();
+
+        return Ok(Some(User {
+            id,
+            created,
+            karma,
+            about,
+        }));
+    }
+    Ok(None)
+}
+
 fn make_comments_tree(
     comments_ids_with_indents: &Vec<(usize, u32)>,
     comments_map: &mut HashMap<u32, Comment>,
@@ -356,9 +424,11 @@ fn date_info(date_el: &ElementRef) -> (DateTime<Utc>, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use std::error::Error;
 
     #[tokio::test]
+    #[serial]
     async fn top_stories_return_something() -> Result<(), Box<dyn Error>> {
         let res = stories_list(StoryList::News, 1).await?;
         assert_eq!(res.len(), 30);
@@ -366,6 +436,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn story_details_return_something() -> Result<(), Box<dyn Error>> {
         let details = story_details(27883047).await?.unwrap();
         assert_eq!(details.story.id, 27883047);
@@ -394,9 +465,31 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn story_details_return_something_with_text() -> Result<(), Box<dyn Error>> {
         let details = story_details(29246573).await?.unwrap();
         assert_eq!(details.html_content, Some("I have been programming web and backend stuff for over a decade but I have never done any kind of image processing. I tried googling but there is so much noise in the QR space.<p>What I want to know is, how does QR scanner code work? How do you go from a photo of a QR to the encoded text within, allowing for all of the factors that will get in the way like poor quality cameras, off-center photos, blurriness etc? Is there a code-first tutorial or worked example somewhere?</p>".to_string()));
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn user_details_returns_none_for_nonexistent_id() -> Result<(), Box<dyn Error>> {
+        let user = user_details("ihopethisusernamedoesnotexist").await?;
+        assert!(user.is_none());
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn user_details_returns_details_for_existent_id() -> Result<(), Box<dyn Error>> {
+        let user = user_details("scastiel").await?;
+        assert!(user.is_some());
+        let user = user.unwrap();
+        assert_eq!(user.id, "scastiel".to_string());
+        assert_eq!(user.created, NaiveDate::from_ymd(2019, 2, 16));
+        assert!(user.karma > 0);
+        assert!(user.about.len() > 0);
         Ok(())
     }
 }
