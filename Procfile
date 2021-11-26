@@ -1,1 +1,1 @@
-web: ./target/release/hn_graphql
+web: ./target/release/hn-graphql

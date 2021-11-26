@@ -1,1 +1,1 @@
-RUST_CARGO_BUILD_FLAGS="--release -p hn_graphql"
+RUST_CARGO_BUILD_FLAGS="--release -p hn-graphql"
