@@ -168,6 +168,30 @@ impl StoryWithDetails {
     }
 }
 
+#[derive(GraphQLObject)]
+/// Information about a user.
+pub struct User {
+    // User ID (their username).
+    pub id: String,
+    // Creation date.
+    pub created: String,
+    // Karma.
+    pub karma: i32,
+    // About text (biography).
+    pub about: String,
+}
+
+impl User {
+    pub fn from_api_user(user: &hnapi::User) -> User {
+        User {
+            id: user.id.clone(),
+            created: user.created.to_string(),
+            karma: user.karma as i32,
+            about: user.about.clone(),
+        }
+    }
+}
+
 #[derive(GraphQLInputObject)]
 struct StoriesInListInput {
     /// The list to grab the stories from (default: top stories)
@@ -204,6 +228,12 @@ impl Query {
     async fn story(id: i32) -> Result<Option<StoryWithDetails>, FieldError> {
         let story_with_details = hnapi::story_details(id as u32).await?;
         Ok(story_with_details.map(|details| StoryWithDetails::from_api_story(&details)))
+    }
+
+    /// Get the details about a given user. Will return `null` for a non-existent user ID.
+    async fn user(id: String) -> Result<Option<User>, FieldError> {
+        let user = hnapi::user_details(&id).await?;
+        Ok(user.map(|user| User::from_api_user(&user)))
     }
 }
 
