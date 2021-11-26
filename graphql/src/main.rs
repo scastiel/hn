@@ -171,13 +171,13 @@ impl StoryWithDetails {
 #[derive(GraphQLObject)]
 /// Information about a user.
 pub struct User {
-    // User ID (their username).
+    /// User ID (their username).
     pub id: String,
-    // Creation date.
+    /// Creation date.
     pub created: String,
-    // Karma.
+    /// Karma.
     pub karma: i32,
-    // About text (biography).
+    /// About text (biography).
     pub about: String,
 }
 
