@@ -11,13 +11,17 @@
 //! does not use the [official API](https://github.com/HackerNews/API) is that it does
 //! not provide a convenient way to get all the comments for a given story.
 
-use crate::tree::SubTree;
 use chrono::{DateTime, NaiveDate, Utc};
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, error::Error, str::FromStr};
-use tree::convert;
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    error::Error,
+    rc::{Rc, Weak},
+    str::FromStr,
+};
 use url::Url;
 
 extern crate chrono;
@@ -25,8 +29,6 @@ extern crate reqwest;
 extern crate scraper;
 extern crate serde;
 extern crate url;
-
-mod tree;
 
 const BASE_URL: &str = "https://news.ycombinator.com";
 
@@ -67,7 +69,7 @@ pub struct User {
     pub about: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 /// Comment posted on a story. A comment can have a parent if it is a reply
 /// to another comment, and can have children.
 pub struct Comment {
@@ -81,11 +83,13 @@ pub struct Comment {
     pub date_displayed: String,
     /// HTML content of the comment.
     pub html_content: String,
+    /// Parent comment, if any.
+    pub parent: RefCell<Option<Weak<Comment>>>,
     /// Reply comments.
-    pub children: Vec<Comment>,
+    pub children: RefCell<Vec<Rc<Comment>>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 /// Combination of a story, its HTML content, and its comments.
 pub struct StoryWithDetails {
     /// Information about the story.
@@ -93,7 +97,7 @@ pub struct StoryWithDetails {
     /// HTML content of the story.
     pub html_content: Option<String>,
     /// List of the comments posted on the story.
-    pub comments: Vec<Comment>,
+    pub comments: Vec<Rc<Comment>>,
 }
 
 /// Available story lists.
@@ -199,10 +203,12 @@ pub async fn story_details(id: u32) -> Result<Option<StoryWithDetails>, Box<dyn 
             .map(|el| el.inner_html())
             .filter(|html| !html.contains("<form "));
 
-        let mut comments_map: HashMap<u32, Comment> = HashMap::new();
-        let mut comments_ids_with_indents: Vec<(usize, u32)> = vec![];
+        // let mut comments_map: HashMap<u32, Comment> = HashMap::new();
+        // let mut comments_ids_with_indents: Vec<(usize, u32)> = vec![];
         let comments_selector = Selector::parse(".comment-tree tr.comtr").unwrap();
         let comment_trs = document.select(&comments_selector);
+        let mut comments: Vec<Rc<Comment>> = vec![];
+        let mut parent_stack: Vec<Rc<Comment>> = vec![];
         for comment_tr in comment_trs {
             let ind_selector = Selector::parse(".ind").unwrap();
             let indent = comment_tr
@@ -211,11 +217,23 @@ pub async fn story_details(id: u32) -> Result<Option<StoryWithDetails>, Box<dyn 
                 .and_then(|ind| ind.value().attr("indent"))
                 .map(|ind| ind.parse::<usize>().unwrap())
                 .unwrap_or(0);
-            let comment = extract_comment_info(&comment_tr);
-            comments_ids_with_indents.push((indent, comment.id));
-            comments_map.insert(comment.id, comment);
+            let comment = Rc::new(extract_comment_info(&comment_tr));
+
+            while indent < parent_stack.len() {
+                parent_stack.pop();
+            }
+
+            if indent == 0 {
+                comments.push(Rc::clone(&comment));
+                parent_stack.push(Rc::clone(&comment));
+            } else {
+                let parent = parent_stack.pop().unwrap();
+                (*parent.children.borrow_mut()).push(Rc::clone(&comment));
+                (*comment.parent.borrow_mut()) = Some(Rc::downgrade(&parent));
+                parent_stack.push(parent);
+                parent_stack.push(comment);
+            }
         }
-        let comments = make_comments_tree(&comments_ids_with_indents, &mut comments_map);
 
         let story_details = StoryWithDetails {
             story,
@@ -279,28 +297,6 @@ pub async fn user_details(id: &str) -> Result<Option<User>, Box<dyn Error>> {
         }));
     }
     Ok(None)
-}
-
-fn make_comments_tree(
-    comments_ids_with_indents: &Vec<(usize, u32)>,
-    comments_map: &mut HashMap<u32, Comment>,
-) -> Vec<Comment> {
-    let tree = convert(&comments_ids_with_indents);
-    fn get_comment(subtree: &SubTree<u32>, comments: &mut HashMap<u32, Comment>) -> Comment {
-        let mut comment = comments.remove(&subtree.val).unwrap();
-        comment.children = subtree
-            .children
-            .iter()
-            .map(|subtree| get_comment(subtree, comments))
-            .collect();
-        comment
-    }
-    let comments: Vec<Comment> = tree
-        .children
-        .iter()
-        .map(|subtree| get_comment(subtree, comments_map))
-        .collect();
-    comments
 }
 
 async fn document_at_url(url: &str) -> Result<Html, reqwest::Error> {
@@ -369,7 +365,8 @@ fn extract_comment_info(comment_el: &ElementRef) -> Comment {
         date,
         date_displayed,
         html_content,
-        children: vec![],
+        parent: RefCell::new(None),
+        children: RefCell::new(vec![]),
     }
 }
 
@@ -439,6 +436,13 @@ mod tests {
     #[serial]
     async fn story_details_return_something() -> Result<(), Box<dyn Error>> {
         let details = story_details(27883047).await?.unwrap();
+
+        let comment = details.comments.iter().nth(1).unwrap();
+        let children = comment.children.borrow();
+        let child = (*children).iter().nth(0).unwrap();
+        let child_parent = child.parent.borrow().as_ref().unwrap().upgrade().unwrap();
+        assert_eq!(child_parent.id, comment.id);
+
         assert_eq!(details.story.id, 27883047);
         assert_eq!(
             details.story.title,
@@ -458,8 +462,6 @@ mod tests {
         assert_eq!(details.html_content, None);
 
         assert!(details.comments.len() > 0);
-
-        println!("{:#?}", details);
 
         Ok(())
     }

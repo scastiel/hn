@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate juniper;
 
+use std::{cell::RefCell, rc::Rc};
+
 use juniper::{EmptyMutation, EmptySubscription, FieldError, GraphQLObject, RootNode};
 use warp::{hyper::Uri, Filter};
 
@@ -130,16 +132,17 @@ impl Comment {
             html_content: comment.html_content.clone(),
             children: comment
                 .children
+                .borrow()
                 .iter()
                 .map(|child| child.id as i32)
                 .collect(),
         }];
-        let mut children = Comment::flatten_tree(&comment.children, Some(comment.id));
+        let mut children = Comment::flatten_tree(&comment.children.borrow(), Some(comment.id));
         comments.append(&mut children);
         comments
     }
 
-    pub fn flatten_tree(comments: &Vec<hnapi::Comment>, parent: Option<u32>) -> Vec<Comment> {
+    pub fn flatten_tree(comments: &Vec<Rc<hnapi::Comment>>, parent: Option<u32>) -> Vec<Comment> {
         comments
             .iter()
             .flat_map(|child| Comment::from_api_comment(child, parent))

@@ -6,6 +6,7 @@ use minus::Pager;
 use state::State;
 use std::fmt::Write as FmtWrite;
 use std::io::Write as IoWrite;
+use std::rc::Rc;
 use std::{
     collections::HashMap,
     error::Error,
@@ -209,7 +210,7 @@ async fn print_story_details(id: u32) -> Result<(), Box<dyn Error>> {
 
     let comments = details.comments;
     for comment in comments {
-        print_comment(&mut output, &comment, 0).await?;
+        print_comment(&mut output, &comment, 0)?;
     }
 
     minus::page_all(output)?;
@@ -221,16 +222,14 @@ fn print_comment<'a>(
     output: &'a mut Pager,
     comment: &'a Comment,
     level: usize,
-) -> BoxFuture<'a, Result<(), Box<dyn Error>>> {
-    async move {
-        writeln!(output, "\n{}", format_comment(&comment, level))?;
-        for child_comment in &comment.children {
-            print_comment(output, child_comment, level + 1).await?;
-        }
-
-        Ok(())
+) -> Result<(), Box<dyn Error>> {
+    writeln!(output, "\n{}", format_comment(&comment, level))?;
+    let children = comment.children.borrow();
+    for child_comment in children.iter() {
+        print_comment(output, child_comment, level + 1)?;
     }
-    .boxed()
+
+    Ok(())
 }
 
 async fn open_story_link(story: &Story) -> Result<(), Box<dyn Error>> {
