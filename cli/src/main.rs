@@ -1,12 +1,12 @@
 use crate::format::{format_comment, format_story, format_story_details, format_user};
+use crate::state::Auth;
 use clap::{self, crate_authors, crate_description, crate_name, crate_version, Arg, SubCommand};
-use futures::future::{BoxFuture, FutureExt};
-use hnapi::{stories_list, story_details, user_details, Comment, Story, StoryList};
+use console::style;
+use hnapi::{login, stories_list, story_details, user_details, Comment, Story, StoryList};
 use minus::Pager;
 use state::State;
 use std::fmt::Write as FmtWrite;
 use std::io::Write as IoWrite;
-use std::rc::Rc;
 use std::{
     collections::HashMap,
     error::Error,
@@ -90,6 +90,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .about("Show details about a user")
                 .arg(Arg::with_name("USER_NAME").required(true).help("User name")),
         )
+        .subcommand(SubCommand::with_name("login").alias("l"))
+        .subcommand(SubCommand::with_name("logout"))
         .get_matches();
 
     let state_path = get_state_path();
@@ -157,10 +159,46 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 eprintln!("Invalid user name.")
             }
         }
+        ("login", _) => {
+            if let Some(auth) = state.auth {
+                println!("Already signed in as {}.", style(&auth.username).bold());
+            } else {
+                let username = prompt("Username: ")?;
+                let password = prompt("Password: ")?;
+                let token = login(&username, &password).await?;
+                if let Some(token) = token {
+                    println!("Successfully signed in as {}.", style(&username).bold());
+                    state.auth = Some(Auth::new(&username, &token));
+                    save_state(&state, &state_path)?;
+                } else {
+                    println!("Invalid username or password.");
+                }
+            }
+        }
+        ("logout", _) => {
+            if state.auth.is_some() {
+                state.auth = None;
+                save_state(&state, &state_path)?;
+                println!("Signed out.");
+            } else {
+                println!("Not signed in.");
+            }
+        }
         _ => (),
     };
 
     Ok(())
+}
+
+fn prompt(prompt: &str) -> Result<String, std::io::Error> {
+    let stdin = std::io::stdin();
+    let mut input = String::new();
+    print!("{}", prompt);
+    std::io::stdout().flush()?;
+    stdin
+        .read_line(&mut input)
+        .expect("Can’t read standard input.");
+    Ok(input.trim_end().to_string())
 }
 
 fn get_page_from_matches(matches: Option<&clap::ArgMatches>) -> usize {

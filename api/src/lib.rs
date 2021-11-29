@@ -305,6 +305,35 @@ async fn document_at_url(url: &str) -> Result<Html, reqwest::Error> {
     Ok(Html::parse_document(&html))
 }
 
+pub async fn login(username: &str, password: &str) -> Result<Option<String>, reqwest::Error> {
+    let client = reqwest::ClientBuilder::new()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()?;
+    let url = format!("{}/login", BASE_URL);
+    let body = url::form_urlencoded::Serializer::new(String::new())
+        .append_pair("goto", "news")
+        .append_pair("acct", &username)
+        .append_pair("pw", &password)
+        .finish();
+    let response = client
+        .post(url)
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(body)
+        .send()
+        .await?;
+    let headers = response.headers();
+    let token = headers.get("Set-Cookie").map(|header| {
+        header
+            .to_str()
+            .unwrap()
+            .split(";")
+            .nth(0)
+            .unwrap()
+            .to_string()
+    });
+    Ok(token)
+}
+
 fn extract_story_info(first_line_el: &ElementRef) -> Story {
     let id = first_line_el.value().attr("id").unwrap().parse().unwrap();
     let title_el = single_element(&first_line_el, ".titlelink").unwrap();
