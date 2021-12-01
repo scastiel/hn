@@ -1,19 +1,22 @@
 use std::collections::HashMap;
 
+use chrono::{DateTime, Utc};
 use hnapi::Story;
 use serde::{Deserialize, Serialize};
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Auth {
     pub username: String,
     pub token: String,
+    pub expires: DateTime<Utc>,
 }
 
 impl Auth {
-    pub fn new(username: &str, token: &str) -> Auth {
+    pub fn new(username: &str, token: &str, expires: &DateTime<Utc>) -> Auth {
         Auth {
             username: username.to_string(),
             token: token.to_string(),
+            expires: expires.clone(),
         }
     }
 }

@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate juniper;
 
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 use juniper::{EmptyMutation, EmptySubscription, FieldError, GraphQLObject, RootNode};
 use warp::{hyper::Uri, Filter};
@@ -214,6 +214,7 @@ impl Query {
         let stories = hnapi::stories_list(
             input.list.unwrap_or_default().to_api_story_list(),
             input.page.unwrap_or(1) as usize,
+            &None,
         )
         .await?;
         let mut ranks: Vec<usize> = stories.keys().copied().collect();

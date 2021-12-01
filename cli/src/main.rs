@@ -32,6 +32,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .short("p")
         .takes_value(true)
         .help("Page number");
+    let story_index_arg = Arg::with_name("INDEX").required(true).help("Story index");
     let matches = clap::App::new(crate_name!())
         .about(crate_description!())
         .version(crate_version!())
@@ -76,13 +77,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
             SubCommand::with_name("details")
                 .alias("d")
                 .about("Print a story details")
-                .arg(Arg::with_name("INDEX").required(true).help("Story index")),
+                .arg(&story_index_arg),
         )
         .subcommand(
             SubCommand::with_name("open")
                 .alias("o")
                 .about("Open a story’s link in the default browser")
-                .arg(Arg::with_name("INDEX").required(true).help("Story index")),
+                .arg(&story_index_arg),
         )
         .subcommand(
             SubCommand::with_name("user")
@@ -92,45 +93,47 @@ async fn main() -> Result<(), Box<dyn Error>> {
         )
         .subcommand(SubCommand::with_name("login").alias("l"))
         .subcommand(SubCommand::with_name("logout"))
+        .subcommand(SubCommand::with_name("upvote").arg(&story_index_arg))
         .get_matches();
 
     let state_path = get_state_path();
     let mut state = read_state(&state_path);
+    let token = state.auth.as_ref().map(|auth| auth.token.clone());
     match matches.subcommand() {
         ("" | "top", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories(StoryList::News, page, state.last_stories).await?);
+                Some(print_stories(StoryList::News, page, state.last_stories, &token).await?);
             save_state(&state, &state_path)?;
         }
         ("new", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories(StoryList::Newest, page, state.last_stories).await?);
+                Some(print_stories(StoryList::Newest, page, state.last_stories, &token).await?);
             save_state(&state, &state_path)?;
         }
         ("best", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories(StoryList::Best, page, state.last_stories).await?);
+                Some(print_stories(StoryList::Best, page, state.last_stories, &token).await?);
             save_state(&state, &state_path)?;
         }
         ("ask", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories(StoryList::Ask, page, state.last_stories).await?);
+                Some(print_stories(StoryList::Ask, page, state.last_stories, &token).await?);
             save_state(&state, &state_path)?;
         }
         ("show", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories(StoryList::Show, page, state.last_stories).await?);
+                Some(print_stories(StoryList::Show, page, state.last_stories, &token).await?);
             save_state(&state, &state_path)?;
         }
         ("job", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories(StoryList::Jobs, page, state.last_stories).await?);
+                Some(print_stories(StoryList::Jobs, page, state.last_stories, &token).await?);
             save_state(&state, &state_path)?;
         }
         ("details", matches) => {
@@ -147,6 +150,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 open_story_link(&last_story).await?;
             } else {
                 eprintln!("Invalid story index.")
+            }
+        }
+        ("upvote", matches) => {
+            if let Some(auth) = state.auth.as_ref() {
+                let last_story = get_story_from_matches(matches, &state);
+                if let Some(last_story) = last_story {
+                    if let Some(upvote_auth) = last_story.upvote_auth.as_ref() {
+                        hnapi::upvote_story(last_story.id, upvote_auth, &auth.token).await?;
+                    } else {
+                        eprintln!("Stories list was loaded before you signed in.\nPlease list the stories again before upvoting.")
+                    }
+                } else {
+                    eprintln!("Invalid story index.")
+                }
+            } else {
+                eprintln!("You must me logged in to upvote a story.");
             }
         }
         ("user", matches) => {
@@ -166,9 +185,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let username = prompt("Username: ")?;
                 let password = prompt("Password: ")?;
                 let token = login(&username, &password).await?;
-                if let Some(token) = token {
+                if let Some((token, expires)) = token {
                     println!("Successfully signed in as {}.", style(&username).bold());
-                    state.auth = Some(Auth::new(&username, &token));
+                    state.auth = Some(Auth::new(&username, &token, &expires));
                     save_state(&state, &state_path)?;
                 } else {
                     println!("Invalid username or password.");
@@ -226,8 +245,9 @@ async fn print_stories(
     list: StoryList,
     page: usize,
     last_stories: Option<HashMap<usize, Story>>,
+    token: &Option<String>,
 ) -> Result<HashMap<usize, Story>, Box<dyn Error>> {
-    let stories = stories_list(list, page).await?;
+    let stories = stories_list(list, page, token).await?;
     let mut last_stories = last_stories.unwrap_or(HashMap::new());
     let mut ranks: Vec<usize> = stories.keys().copied().collect();
     ranks.sort();

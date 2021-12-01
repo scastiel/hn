@@ -13,6 +13,7 @@
 
 use chrono::{DateTime, NaiveDate, Utc};
 use regex::Regex;
+use reqwest::header::COOKIE;
 use scraper::{ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -44,6 +45,9 @@ pub struct Story {
     /// URL as it is display. Often the domain only (e.g. “google.com”), possibly with
     /// additions (e.g. “github.com/scastiel”).
     pub url_displayed: Option<String>,
+    /// Parameter to give to `upvote` method to be able to upvote a story. Will be None if
+    /// not logged in.
+    pub upvote_auth: Option<String>,
     /// Nickname of the user who posted the story.
     pub user: Option<String>,
     /// Score of the story at this instant.
@@ -150,9 +154,10 @@ impl StoryList {
 pub async fn stories_list(
     list: StoryList,
     page: usize,
+    token: &Option<String>,
 ) -> Result<HashMap<usize, Story>, Box<dyn Error>> {
     let url = format!("{}?p={}", list.url(), page);
-    let document = document_at_url(&url).await?;
+    let document = document_at_url(&url, &token).await?;
     let stories: HashMap<usize, Story> = document
         .select(&Selector::parse("tr.athing").unwrap())
         .map(|tr| {
@@ -188,7 +193,7 @@ pub async fn stories_list(
 /// ```
 pub async fn story_details(id: u32) -> Result<Option<StoryWithDetails>, Box<dyn Error>> {
     let url = format!("{}/item?id={}", BASE_URL, id);
-    let document = document_at_url(&url).await?;
+    let document = document_at_url(&url, &None).await?;
     if let Some(tr) = single_doc_element(&document, "table.fatitem tr.athing") {
         let story = extract_story_info(&tr);
 
@@ -265,7 +270,7 @@ pub async fn story_details(id: u32) -> Result<Option<StoryWithDetails>, Box<dyn 
 /// ```
 pub async fn user_details(id: &str) -> Result<Option<User>, Box<dyn Error>> {
     let url = format!("{}/user?id={}", BASE_URL, id);
-    let document = document_at_url(&url).await?;
+    let document = document_at_url(&url, &None).await?;
     if let Some(table) =
         single_doc_element(&document, "#hnmain > tbody > tr:nth-child(3) > td > table")
     {
@@ -299,13 +304,21 @@ pub async fn user_details(id: &str) -> Result<Option<User>, Box<dyn Error>> {
     Ok(None)
 }
 
-async fn document_at_url(url: &str) -> Result<Html, reqwest::Error> {
-    let resp = reqwest::get(url).await?;
+async fn document_at_url(url: &str, token: &Option<String>) -> Result<Html, reqwest::Error> {
+    let client = reqwest::ClientBuilder::new().build()?;
+    let mut request_builder = client.get(url);
+    if let Some(token) = token {
+        request_builder = request_builder.header(COOKIE, format!("user={}", token));
+    }
+    let resp = request_builder.send().await?;
     let html = resp.text().await?;
     Ok(Html::parse_document(&html))
 }
 
-pub async fn login(username: &str, password: &str) -> Result<Option<String>, reqwest::Error> {
+pub async fn login(
+    username: &str,
+    password: &str,
+) -> Result<Option<(String, DateTime<Utc>)>, reqwest::Error> {
     let client = reqwest::ClientBuilder::new()
         .redirect(reqwest::redirect::Policy::none())
         .build()?;
@@ -321,17 +334,21 @@ pub async fn login(username: &str, password: &str) -> Result<Option<String>, req
         .body(body)
         .send()
         .await?;
-    let headers = response.headers();
-    let token = headers.get("Set-Cookie").map(|header| {
-        header
-            .to_str()
-            .unwrap()
-            .split(";")
-            .nth(0)
-            .unwrap()
-            .to_string()
+    let token = response.cookies().next().map(|cookie| {
+        let token = cookie.value().to_string();
+        let expires = cookie.expires().map(DateTime::<Utc>::from).unwrap();
+        (token, expires)
     });
     Ok(token)
+}
+
+pub async fn upvote_story(id: u32, upvote_auth: &str, token: &str) -> Result<(), reqwest::Error> {
+    let url = format!(
+        "{}/vote?id={}&how=up&auth={}&goto=news",
+        BASE_URL, id, upvote_auth
+    );
+    document_at_url(&url, &Some(token.to_string())).await?;
+    Ok(())
 }
 
 fn extract_story_info(first_line_el: &ElementRef) -> Story {
@@ -339,6 +356,16 @@ fn extract_story_info(first_line_el: &ElementRef) -> Story {
     let title_el = single_element(&first_line_el, ".titlelink").unwrap();
     let (title, url) = link_info(&title_el);
     let url_displayed = single_element_html(&first_line_el, ".sitestr");
+    let upvote_auth = single_element(&first_line_el, ".clicky").and_then(|upvote_link| {
+        let (_, upvote_url) = link_info(&upvote_link);
+        upvote_url.query_pairs().find_map(|(key, value)| {
+            if key == "auth" {
+                Some(value.to_string())
+            } else {
+                None
+            }
+        })
+    });
 
     let second_line_el = ElementRef::wrap(first_line_el.next_sibling().unwrap()).unwrap();
     let score = single_element_html(&second_line_el, ".score").map(parse_score);
@@ -358,6 +385,7 @@ fn extract_story_info(first_line_el: &ElementRef) -> Story {
         title,
         url,
         url_displayed,
+        upvote_auth,
         user,
         score,
         date,
@@ -456,7 +484,7 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn top_stories_return_something() -> Result<(), Box<dyn Error>> {
-        let res = stories_list(StoryList::News, 1).await?;
+        let res = stories_list(StoryList::News, 1, &None).await?;
         assert_eq!(res.len(), 30);
         Ok(())
     }
