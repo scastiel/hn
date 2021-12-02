@@ -142,7 +142,7 @@ impl StoryList {
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let stories = stories_list(StoryList::News, 1).await?;
+///     let stories = stories_list(StoryList::News, 1, &None).await?;
 ///     assert_eq!(stories.len(), 30);
 ///     let first_story = stories.get(&1);
 ///     assert!(first_story.is_some());
