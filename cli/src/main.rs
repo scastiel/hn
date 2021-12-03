@@ -1,12 +1,12 @@
 use crate::format::{format_comment, format_story, format_story_details, format_user};
+use crate::state::Auth;
 use clap::{self, crate_authors, crate_description, crate_name, crate_version, Arg, SubCommand};
-use futures::future::{BoxFuture, FutureExt};
-use hnapi::{stories_list, story_details, user_details, Comment, Story, StoryList};
+use console::style;
+use hnapi::{login, stories_list, story_details, user_details, Comment, Story, StoryList};
 use minus::Pager;
 use state::State;
 use std::fmt::Write as FmtWrite;
 use std::io::Write as IoWrite;
-use std::rc::Rc;
 use std::{
     collections::HashMap,
     error::Error,
@@ -32,6 +32,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .short("p")
         .takes_value(true)
         .help("Page number");
+    let story_index_arg = Arg::with_name("INDEX").required(true).help("Story index");
     let matches = clap::App::new(crate_name!())
         .about(crate_description!())
         .version(crate_version!())
@@ -76,13 +77,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
             SubCommand::with_name("details")
                 .alias("d")
                 .about("Print a story details")
-                .arg(Arg::with_name("INDEX").required(true).help("Story index")),
+                .arg(&story_index_arg),
         )
         .subcommand(
             SubCommand::with_name("open")
                 .alias("o")
                 .about("Open a story’s link in the default browser")
-                .arg(Arg::with_name("INDEX").required(true).help("Story index")),
+                .arg(&story_index_arg),
         )
         .subcommand(
             SubCommand::with_name("user")
@@ -90,45 +91,49 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .about("Show details about a user")
                 .arg(Arg::with_name("USER_NAME").required(true).help("User name")),
         )
+        .subcommand(SubCommand::with_name("login").alias("l"))
+        .subcommand(SubCommand::with_name("logout"))
+        .subcommand(SubCommand::with_name("upvote").arg(&story_index_arg))
         .get_matches();
 
     let state_path = get_state_path();
     let mut state = read_state(&state_path);
+    let token = state.auth.as_ref().map(|auth| auth.token.clone());
     match matches.subcommand() {
         ("" | "top", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories(StoryList::News, page, state.last_stories).await?);
+                Some(print_stories(StoryList::News, page, state.last_stories, &token).await?);
             save_state(&state, &state_path)?;
         }
         ("new", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories(StoryList::Newest, page, state.last_stories).await?);
+                Some(print_stories(StoryList::Newest, page, state.last_stories, &token).await?);
             save_state(&state, &state_path)?;
         }
         ("best", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories(StoryList::Best, page, state.last_stories).await?);
+                Some(print_stories(StoryList::Best, page, state.last_stories, &token).await?);
             save_state(&state, &state_path)?;
         }
         ("ask", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories(StoryList::Ask, page, state.last_stories).await?);
+                Some(print_stories(StoryList::Ask, page, state.last_stories, &token).await?);
             save_state(&state, &state_path)?;
         }
         ("show", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories(StoryList::Show, page, state.last_stories).await?);
+                Some(print_stories(StoryList::Show, page, state.last_stories, &token).await?);
             save_state(&state, &state_path)?;
         }
         ("job", matches) => {
             let page = get_page_from_matches(matches);
             state.last_stories =
-                Some(print_stories(StoryList::Jobs, page, state.last_stories).await?);
+                Some(print_stories(StoryList::Jobs, page, state.last_stories, &token).await?);
             save_state(&state, &state_path)?;
         }
         ("details", matches) => {
@@ -147,6 +152,38 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 eprintln!("Invalid story index.")
             }
         }
+        ("upvote", matches) => {
+            if let Some(auth) = state.auth.as_ref() {
+                let last_story = get_story_from_matches(matches, &state);
+                if let Some(Story {
+                    upvote_auth,
+                    id,
+                    title,
+                    ..
+                }) = last_story
+                {
+                    if let Some(upvote_auth) = upvote_auth.as_ref() {
+                        let ok = hnapi::upvote_story(*id, upvote_auth, &auth.token).await?;
+                        if ok {
+                            println!("Successfully upvoted story {}.", style(title).bold());
+                        } else {
+                            eprintln!(
+                                "Error upvoting story {}.\nYou may need to {} and {} again.",
+                                style(title).bold(),
+                                style("logout").bold(),
+                                style("login").bold()
+                            );
+                        }
+                    } else {
+                        eprintln!("Stories list was loaded before you signed in.\nPlease list the stories again before upvoting.")
+                    }
+                } else {
+                    eprintln!("Invalid story index.")
+                }
+            } else {
+                eprintln!("You must me logged in to upvote a story.");
+            }
+        }
         ("user", matches) => {
             let user_id = matches
                 .and_then(|matches| matches.value_of("USER_NAME"))
@@ -157,10 +194,46 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 eprintln!("Invalid user name.")
             }
         }
+        ("login", _) => {
+            if let Some(auth) = state.auth {
+                println!("Already signed in as {}.", style(&auth.username).bold());
+            } else {
+                let username = prompt("Username: ")?;
+                let password = prompt("Password: ")?;
+                let token = login(&username, &password).await?;
+                if let Some((token, expires)) = token {
+                    println!("Successfully signed in as {}.", style(&username).bold());
+                    state.auth = Some(Auth::new(&username, &token, &expires));
+                    save_state(&state, &state_path)?;
+                } else {
+                    println!("Invalid username or password.");
+                }
+            }
+        }
+        ("logout", _) => {
+            if state.auth.is_some() {
+                state.auth = None;
+                save_state(&state, &state_path)?;
+                println!("Signed out.");
+            } else {
+                println!("Not signed in.");
+            }
+        }
         _ => (),
     };
 
     Ok(())
+}
+
+fn prompt(prompt: &str) -> Result<String, std::io::Error> {
+    let stdin = std::io::stdin();
+    let mut input = String::new();
+    print!("{}", prompt);
+    std::io::stdout().flush()?;
+    stdin
+        .read_line(&mut input)
+        .expect("Can’t read standard input.");
+    Ok(input.trim_end().to_string())
 }
 
 fn get_page_from_matches(matches: Option<&clap::ArgMatches>) -> usize {
@@ -188,8 +261,9 @@ async fn print_stories(
     list: StoryList,
     page: usize,
     last_stories: Option<HashMap<usize, Story>>,
+    token: &Option<String>,
 ) -> Result<HashMap<usize, Story>, Box<dyn Error>> {
-    let stories = stories_list(list, page).await?;
+    let stories = stories_list(list, page, token).await?;
     let mut last_stories = last_stories.unwrap_or(HashMap::new());
     let mut ranks: Vec<usize> = stories.keys().copied().collect();
     ranks.sort();

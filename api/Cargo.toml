@@ -1,6 +1,6 @@
 [package]
 name = "hnapi"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 authors = ["Sebastien Castiel <sebastien@castiel.me>"]
@@ -10,7 +10,7 @@ repository = "https://github.com/scastiel/hn"
 
 [dependencies]
 scraper = "0.12.0"
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json", "cookies"] }
 tokio = { version = "1", features = ["full"] }
 chrono = { version = "0.4.19", features = ["serde"] }
 url = { version = "2.2.2", features = ["serde"] }

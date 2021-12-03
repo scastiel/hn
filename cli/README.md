@@ -34,7 +34,11 @@ After listing stories, note the index of the story you are interested in (let’
 
 You can also display the details about a user with `hn user the_user_name` or `hn u the_user`.
 
-**Note:** information is obtained by scraping the HackerNews website. The reason this crate does not use the [official API](https://github.com/HackerNews/API) is that it does not provide a convenient way to get all the comments for a given story.
+To login, use `hn login` or `hn l`. The auth token will be persisted to be used in the next commands. Note that to perform write operations (such as upvoting a story), you will need to reload the list of the stories using the commands listed above, such as `hn top`.
+
+To logout and remove the persisted auth token, use the command `hn logout`.
+
+**Note:** information is obtained by scraping the HackerNews website. The reason this crate does not use the [official API](https://github.com/HackerNews/API) is that it does not provide a convenient way to get all the comments for a given story, and only allows read operations.
 
 ## License
 

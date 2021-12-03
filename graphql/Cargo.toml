@@ -1,6 +1,6 @@
 [package]
 name = "hn-graphql"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 description = "A non-official HackerNews GraphQL API"
@@ -14,4 +14,4 @@ serde_json = "1.0"
 juniper = { version = "0.15.7" }
 juniper_warp = "0.7.0"
 warp = "0.3"
-hnapi = { path = "../api", version = "0.2.0" }
+hnapi = { path = "../api", version = "0.3.0" }
