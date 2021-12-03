@@ -1,6 +1,6 @@
 [package]
 name = "hn-cli"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 description = "Another HackerNews command-line client."
@@ -29,4 +29,4 @@ regex = "1"
 minus = { version = "4.0.2", features = ["static_output"] }
 futures = "0.3.17"
 dirs = "4.0.0"
-hnapi = { path = "../api", version = "0.2.0" }
+hnapi = { path = "../api", version = "0.3.0" }
