@@ -553,7 +553,7 @@ mod tests {
         assert_eq!(user.id, "scastiel".to_string());
         assert_eq!(user.created, NaiveDate::from_ymd(2019, 2, 16));
         assert!(user.karma > 0);
-        assert!(user.about.len() > 0);
+        assert!(!user.about.is_empty());
         Ok(())
     }
 }

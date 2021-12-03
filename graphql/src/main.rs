@@ -265,7 +265,7 @@ impl Query {
             .iter()
             .map(|rank| {
                 let story = stories.get(rank).unwrap();
-                StoryWithRank::from_api_story(*rank, &story)
+                StoryWithRank::from_api_story(*rank, story)
             })
             .collect())
     }
