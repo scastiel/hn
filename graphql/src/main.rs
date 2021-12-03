@@ -299,15 +299,20 @@ struct Mutation;
 
 #[graphql_object(context = Context)]
 impl Mutation {
-    /// Upvote a story. You must be authenticated; note that in case the auth token or the upvote auth
-    /// is not valid, there won’t be any error returned.
+    /// Upvote a story. You must be authenticated.
     async fn upvote_story(context: &Context, input: UpvoteStoryInput) -> Result<bool, FieldError> {
         if let Some(auth_token) = context.auth_token.as_ref() {
-            if hnapi::upvote_story(input.id as u32, &input.upvote_auth, auth_token)
-                .await
-                .is_ok()
+            if let Ok(ok) =
+                hnapi::upvote_story(input.id as u32, &input.upvote_auth, auth_token).await
             {
-                Ok(true)
+                if ok {
+                    Ok(true)
+                } else {
+                    Err(FieldError::new(
+                        "Authentication error. You may need to login again.",
+                        graphql_value!(None),
+                    ))
+                }
             } else {
                 Err(FieldError::new(
                     "An error occurred while upvoting the story.",

@@ -155,9 +155,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ("upvote", matches) => {
             if let Some(auth) = state.auth.as_ref() {
                 let last_story = get_story_from_matches(matches, &state);
-                if let Some(last_story) = last_story {
-                    if let Some(upvote_auth) = last_story.upvote_auth.as_ref() {
-                        hnapi::upvote_story(last_story.id, upvote_auth, &auth.token).await?;
+                if let Some(Story {
+                    upvote_auth,
+                    id,
+                    title,
+                    ..
+                }) = last_story
+                {
+                    if let Some(upvote_auth) = upvote_auth.as_ref() {
+                        let ok = hnapi::upvote_story(*id, upvote_auth, &auth.token).await?;
+                        if ok {
+                            println!("Successfully upvoted story {}.", style(title).bold());
+                        } else {
+                            eprintln!(
+                                "Error upvoting story {}.\nYou may need to {} and {} again.",
+                                style(title).bold(),
+                                style("logout").bold(),
+                                style("login").bold()
+                            );
+                        }
                     } else {
                         eprintln!("Stories list was loaded before you signed in.\nPlease list the stories again before upvoting.")
                     }

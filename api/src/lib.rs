@@ -342,13 +342,16 @@ pub async fn login(
     Ok(token)
 }
 
-pub async fn upvote_story(id: u32, upvote_auth: &str, token: &str) -> Result<(), reqwest::Error> {
+pub async fn upvote_story(id: u32, upvote_auth: &str, token: &str) -> Result<bool, reqwest::Error> {
     let url = format!(
         "{}/vote?id={}&how=up&auth={}&goto=news",
         BASE_URL, id, upvote_auth
     );
-    document_at_url(&url, &Some(token.to_string())).await?;
-    Ok(())
+    let document = document_at_url(&url, &Some(token.to_string())).await?;
+    if single_doc_element(&document, "form[action='vote']").is_some() {
+        return Ok(false);
+    }
+    Ok(true)
 }
 
 fn extract_story_info(first_line_el: &ElementRef) -> Story {
