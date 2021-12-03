@@ -146,7 +146,7 @@ impl Comment {
         comments
     }
 
-    pub fn flatten_tree(comments: &Vec<Rc<hnapi::Comment>>, parent: Option<u32>) -> Vec<Comment> {
+    pub fn flatten_tree(comments: &[Rc<hnapi::Comment>], parent: Option<u32>) -> Vec<Comment> {
         comments
             .iter()
             .flat_map(|child| Comment::from_api_comment(child, parent))
@@ -260,12 +260,12 @@ impl Query {
         )
         .await?;
         let mut ranks: Vec<usize> = stories.keys().copied().collect();
-        ranks.sort();
+        ranks.sort_unstable();
         Ok(ranks
             .iter()
             .map(|rank| {
                 let story = stories.get(rank).unwrap();
-                StoryWithRank::from_api_story(*rank, &story)
+                StoryWithRank::from_api_story(*rank, story)
             })
             .collect())
     }

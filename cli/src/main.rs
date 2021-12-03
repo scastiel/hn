@@ -147,7 +147,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ("open", matches) => {
             let last_story = get_story_from_matches(matches, &state);
             if let Some(last_story) = last_story {
-                open_story_link(&last_story).await?;
+                open_story_link(last_story).await?;
             } else {
                 eprintln!("Invalid story index.")
             }
@@ -254,7 +254,7 @@ fn get_story_from_matches<'a>(
 }
 
 fn result_to_option<T, E>(result: Result<T, E>) -> Option<T> {
-    result.map(|i| Some(i)).unwrap_or(None)
+    result.map(Some).unwrap_or(None)
 }
 
 async fn print_stories(
@@ -264,12 +264,12 @@ async fn print_stories(
     token: &Option<String>,
 ) -> Result<HashMap<usize, Story>, Box<dyn Error>> {
     let stories = stories_list(list, page, token).await?;
-    let mut last_stories = last_stories.unwrap_or(HashMap::new());
+    let mut last_stories = last_stories.unwrap_or_default();
     let mut ranks: Vec<usize> = stories.keys().copied().collect();
-    ranks.sort();
+    ranks.sort_unstable();
     for rank in ranks {
         let story = stories.get(&rank).unwrap();
-        println!("{}", format_story(rank, &story));
+        println!("{}", format_story(rank, story));
     }
     last_stories.extend(stories);
     Ok(last_stories)
@@ -297,7 +297,7 @@ fn print_comment<'a>(
     comment: &'a Comment,
     level: usize,
 ) -> Result<(), Box<dyn Error>> {
-    writeln!(output, "\n{}", format_comment(&comment, level))?;
+    writeln!(output, "\n{}", format_comment(comment, level))?;
     let children = comment.children.borrow();
     for child_comment in children.iter() {
         print_comment(output, child_comment, level + 1)?;
