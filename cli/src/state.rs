@@ -16,7 +16,7 @@ impl Auth {
         Auth {
             username: username.to_string(),
             token: token.to_string(),
-            expires: expires.clone(),
+            expires: *expires,
         }
     }
 }
@@ -28,7 +28,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn get_last_story<'a>(&'a self, index: usize) -> Option<&'a Story> {
+    pub fn get_last_story(&'_ self, index: usize) -> Option<&'_ Story> {
         if let Some(last_stories) = &self.last_stories {
             last_stories.get(&index)
         } else {

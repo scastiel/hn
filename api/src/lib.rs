@@ -160,7 +160,7 @@ pub async fn stories_list(
     token: &Option<String>,
 ) -> Result<HashMap<usize, Story>, Box<dyn Error>> {
     let url = format!("{}?p={}", list.url(), page);
-    let document = document_at_url(&url, &token).await?;
+    let document = document_at_url(&url, token).await?;
     let stories: HashMap<usize, Story> = document
         .select(&Selector::parse("tr.athing").unwrap())
         .map(|tr| {
@@ -221,7 +221,7 @@ pub async fn story_details(id: u32) -> Result<Option<StoryWithDetails>, Box<dyn 
             let ind_selector = Selector::parse(".ind").unwrap();
             let indent = comment_tr
                 .select(&ind_selector)
-                .nth(0)
+                .next()
                 .and_then(|ind| ind.value().attr("indent"))
                 .map(|ind| ind.parse::<usize>().unwrap())
                 .unwrap_or(0);
@@ -328,8 +328,8 @@ pub async fn login(
     let url = format!("{}/login", BASE_URL);
     let body = url::form_urlencoded::Serializer::new(String::new())
         .append_pair("goto", "news")
-        .append_pair("acct", &username)
-        .append_pair("pw", &password)
+        .append_pair("acct", username)
+        .append_pair("pw", password)
         .finish();
     let response = client
         .post(url)
@@ -359,10 +359,10 @@ pub async fn upvote_story(id: u32, upvote_auth: &str, token: &str) -> Result<boo
 
 fn extract_story_info(first_line_el: &ElementRef) -> Story {
     let id = first_line_el.value().attr("id").unwrap().parse().unwrap();
-    let title_el = single_element(&first_line_el, ".titlelink").unwrap();
+    let title_el = single_element(first_line_el, ".titlelink").unwrap();
     let (title, url) = link_info(&title_el);
-    let url_displayed = single_element_html(&first_line_el, ".sitestr");
-    let upvote_auth = single_element(&first_line_el, ".clicky").and_then(|upvote_link| {
+    let url_displayed = single_element_html(first_line_el, ".sitestr");
+    let upvote_auth = single_element(first_line_el, ".clicky").and_then(|upvote_link| {
         let (_, upvote_url) = link_info(&upvote_link);
         upvote_url.query_pairs().find_map(|(key, value)| {
             if key == "auth" {
@@ -382,8 +382,7 @@ fn extract_story_info(first_line_el: &ElementRef) -> Story {
 
     let comment_count = second_line_el
         .select(&Selector::parse("a").unwrap())
-        .filter(|el| el.inner_html().contains("&nbsp;comment"))
-        .nth(0)
+        .find(|el| el.inner_html().contains("&nbsp;comment"))
         .map(|el| parse_comment_count(el.inner_html()));
 
     Story {
@@ -403,14 +402,14 @@ fn extract_story_info(first_line_el: &ElementRef) -> Story {
 fn extract_comment_info(comment_el: &ElementRef) -> Comment {
     let id = comment_el.value().attr("id").unwrap().parse().unwrap();
 
-    let user = single_element_html(&comment_el, ".hnuser").unwrap();
-    let (date, date_displayed) = single_element(&comment_el, ".age")
+    let user = single_element_html(comment_el, ".hnuser").unwrap();
+    let (date, date_displayed) = single_element(comment_el, ".age")
         .map(|d| date_info(&d))
         .unwrap();
 
-    let html_content = single_element(&comment_el, ".commtext")
+    let html_content = single_element(comment_el, ".commtext")
         .map(|el| {
-            let first_paragraph = el.text().nth(0).unwrap_or("");
+            let first_paragraph = el.text().next().unwrap_or("");
             let other_paragraphes = el
                 .children()
                 .flat_map(ElementRef::wrap)
@@ -450,15 +449,15 @@ fn parse_comment_count(comment_count: String) -> u32 {
 }
 
 fn single_doc_element<'a>(document: &'a Html, selector: &str) -> Option<ElementRef<'a>> {
-    document.select(&Selector::parse(selector).unwrap()).nth(0)
+    document.select(&Selector::parse(selector).unwrap()).next()
 }
 
 fn single_element<'a>(el: &'a ElementRef, selector: &str) -> Option<ElementRef<'a>> {
-    el.select(&Selector::parse(selector).unwrap()).nth(0)
+    el.select(&Selector::parse(selector).unwrap()).next()
 }
 
 fn single_element_html(el: &ElementRef, selector: &str) -> Option<String> {
-    single_element(&el, selector).map(|el| el.inner_html())
+    single_element(el, selector).map(|el| el.inner_html())
 }
 
 fn link_info(link_el: &ElementRef) -> (String, Url) {
@@ -500,9 +499,9 @@ mod tests {
     async fn story_details_return_something() -> Result<(), Box<dyn Error>> {
         let details = story_details(27883047).await?.unwrap();
 
-        let comment = details.comments.iter().nth(1).unwrap();
+        let comment = details.comments.get(1).unwrap();
         let children = comment.children.borrow();
-        let child = (*children).iter().nth(0).unwrap();
+        let child = (*children).get(0).unwrap();
         let child_parent = child.parent.borrow().as_ref().unwrap().upgrade().unwrap();
         assert_eq!(child_parent.id, comment.id);
 
@@ -524,7 +523,7 @@ mod tests {
 
         assert_eq!(details.html_content, None);
 
-        assert!(details.comments.len() > 0);
+        assert!(!details.comments.is_empty());
 
         Ok(())
     }

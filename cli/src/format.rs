@@ -34,8 +34,8 @@ pub fn format_story(rank: usize, story: &Story) -> String {
         "{:2}. ▲ {} {}\n      {}",
         rank,
         format_story_title(&story.title),
-        format_story_short_url(&story),
-        format_second_line(&story),
+        format_story_short_url(story),
+        format_second_line(story),
     )
 }
 
@@ -48,15 +48,15 @@ pub fn format_story_details(details: &StoryWithDetails) -> String {
         details
             .html_content
             .as_deref()
-            .map(|text| format!("\n\n{}", format_story_text(&text, 0)))
-            .unwrap_or("".to_string()),
+            .map(|text| format!("\n\n{}", format_story_text(text, 0)))
+            .unwrap_or_else(|| "".to_string()),
     )
 }
 
 pub fn format_comment(comment: &Comment, level: usize) -> String {
     format!(
         "{}\n{}",
-        indent(&format_comment_header(&comment), level),
+        indent(&format_comment_header(comment), level),
         format_story_text(&comment.html_content, level),
     )
 }
@@ -77,13 +77,13 @@ fn format_story_text(text: &str, level: usize) -> String {
     let text = Regex::new("<i>(.*)</i>")
         .unwrap()
         .replace_all(&text, style("$1").italic().to_string());
-    indent(&wrap_text(&text.trim(), 80 - level * 2), level)
+    indent(&wrap_text(text.trim(), 80 - level * 2), level)
 }
 
 fn wrap_text(text: &str, width: usize) -> String {
     let dictionary = Standard::from_embedded(Language::EnglishUS).unwrap();
     let options = Options::new(width).word_splitter(dictionary);
-    fill(&text, &options)
+    fill(text, &options)
 }
 
 fn format_story_title(story_title: &str) -> String {
@@ -110,7 +110,7 @@ fn format_second_line(story: &Story) -> String {
             .user
             .as_deref()
             .map(|by| format!(" by {}", by))
-            .unwrap_or("".to_string()),
+            .unwrap_or_else(|| "".to_string()),
         story.date_displayed,
         story.comment_count.unwrap_or(0)
     ))
