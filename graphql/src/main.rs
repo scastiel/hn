@@ -349,13 +349,13 @@ async fn main() {
         .unwrap_or(8080);
     println!("Listening on port {}...", port);
 
-    let graphiql_route = warp::get()
-        .and(warp::path("graphiql"))
-        .and(juniper_warp::graphiql_filter("/graphql", None));
+    let playground_route = warp::get()
+        .and(warp::path("playground"))
+        .and(juniper_warp::playground_filter("/graphql", None));
     let graphql_route = warp::path("graphql").and(graphql_filter);
-    let default_route = warp::path::end().map(|| warp::redirect(Uri::from_static("/graphiql")));
+    let default_route = warp::path::end().map(|| warp::redirect(Uri::from_static("/playground")));
 
-    warp::serve(graphiql_route.or(graphql_route).or(default_route))
+    warp::serve(playground_route.or(graphql_route).or(default_route))
         .run(([0, 0, 0, 0], port))
         .await
 }

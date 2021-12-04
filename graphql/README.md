@@ -11,23 +11,11 @@ This is an attempt to create a clean and documented [GraphQL](https://graphql.or
 
 This GraphQL API uses [a library](https://github.com/scastiel/hn/tree/main/api) performing scraping on the HackerNews website. Usually, scrapping a website would be a terrible idea and could stop working any day; but the good thing with HackerNews is that its design is never updated ;)
 
-## Screenshots
-
-<table>
-  <tr>
-    <td><img src="https://github.com/scastiel/hn/blob/main/graphql/graphiql_screenshot01.png?raw=true"/></td>
-    <td><img src="https://github.com/scastiel/hn/blob/main/graphql/graphiql_screenshot02.png?raw=true"/></td>
-  </tr>
-</table>
+<img src="https://github.com/scastiel/hn/blob/main/graphql/screenshot.png?raw=true"/>
 
 ## Usage
 
-I deployed the server on Heroku. You can play with [GraphiQL](https://hackernews-graphql-api.herokuapp.com/graphiql) there and use it to view the documentation of the available queries and mutations. Note that this version of GraphiQL doesn’t support adding HTTP headers easilly, so you won’t be able to run authenticated requests.
-
-As an alternative, other IDEs exists to use GraphQL API with a better user experience, such as:
-
-- [GraphQL Playground](https://github.com/graphql/graphql-playground)
-- [GraphiQL App](https://github.com/skevy/graphiql-app)
+I deployed the server on Heroku. You can play with [the playground](https://hackernews-graphql-api.herokuapp.com/playground) there and use it to view the documentation of the available queries and mutations.
 
 The API endpoint is `https://hackernews-graphql-api.herokuapp.com/graphql`.
 
@@ -52,7 +40,7 @@ You can also clone this repository to deploy your own version of the server :)
 
 ## Examples
 
-One of the advantage of GraphQL APIs is that they are self-documented, so you can use the deployed [GraphiQL](https://hackernews-graphql-api.herokuapp.com/graphiql) to get the full documentation. But here are some examples of what you can do with it:
+One of the advantage of GraphQL APIs is that they are self-documented, so you can use the deployed [playground](https://hackernews-graphql-api.herokuapp.com/playground) to get the full documentation. But here are some examples of what you can do with it:
 
 ### List stories
 
