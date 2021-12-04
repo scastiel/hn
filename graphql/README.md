@@ -1,4 +1,4 @@
-# A GraphQL API for HackerNews
+# Unofficial GraphQL API for [HackerNews](https://news.ycombinator.com/)
 
 [![Rust](https://github.com/scastiel/hn/actions/workflows/rust.yml/badge.svg)](https://github.com/scastiel/hn/actions/workflows/rust.yml)
 
@@ -10,6 +10,8 @@ HackerNews’ [official API](https://github.com/HackerNews/API) is nice, but has
 This is an attempt to create a clean and documented [GraphQL](https://graphql.org/) API, which would ultimately offer the same features as the HackerNews website itself. The goal is to be able to create alternative frontends for HackerNews: a web or mobile application, a [command-line interface](https://github.com/scastiel/hn/tree/main/cli)… sky is the limit!
 
 This GraphQL API uses [a library](https://github.com/scastiel/hn/tree/main/api) performing scraping on the HackerNews website. Usually, scrapping a website would be a terrible idea and could stop working any day; but the good thing with HackerNews is that its design is never updated ;)
+
+_**Disclaimer**: this API is in no way affiliated with, authorized, maintained, sponsored or endorsed by YCombinator or any of its affiliates or subsidiaries. This is an independent and unofficial API. Use at your own risk._
 
 <img src="https://github.com/scastiel/hn/blob/main/graphql/screenshot.png?raw=true"/>
 
